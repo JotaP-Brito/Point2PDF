@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Point2PDF</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      padding: 40px;
+      width: 500px;
+      text-align: center;
+    }
+    h1 { color: #2e7d32; margin-bottom: 30px; }
+    #drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 12px;
+      padding: 40px;
+      margin-bottom: 20px;
+      transition: 0.3s;
+      cursor: pointer;
+      background: #fafafa;
+    }
+    #drop-zone.dragover {
+      background: #e8f5e9;
+      border-color: #2e7d32;
+    }
+    #file-name { margin: 10px 0; color: #555; font-size: 14px; }
+    .output-name {
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .output-name input {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      width: 200px;
+    }
+    .output-name span { color: #888; }
+    button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 15px;
+    }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: #1b5e20; }
+    #status { margin-top: 20px; font-size: 14px; }
+    .hidden { display: none; }
+    #progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    #progress-fill {
+      width: 0%;
+      height: 100%;
+      background: #2e7d32;
+      transition: width 0.2s;
+    }
+    #open-folder-btn {
+      margin-top: 10px;
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📄 Point2PDF</h1>
+    <div id="drop-zone">
+      <p>Drag &amp; drop a file here, or click to browse</p>
+      <input type="file" id="file-input" hidden>
+    </div>
+    <div id="file-name"></div>
+    <div class="output-name">
+      <label for="output-name-input">Save as:</label>
+      <input type="text" id="output-name-input" placeholder="document" disabled>
+      <span>.pdf</span>
+    </div>
+    <button id="convert-btn" disabled>Convert to PDF</button>
+    <div id="progress-bar" class="hidden">
+      <div id="progress-fill"></div>
+    </div>
+    <div id="status"></div>
+    <button id="open-folder-btn" class="hidden" onclick="openFolder()">📂 Show in folder</button>
+  </div>
+
+  <script type="text/javascript" src="/eel.js"></script>
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    const outputNameInput = document.getElementById('output-name-input');
+    const convertBtn = document.getElementById('convert-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const statusDiv = document.getElementById('status');
+    const openFolderBtn = document.getElementById('open-folder-btn');
+
+    let selectedFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length) handleFile(files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      selectedFile = file;
+      fileNameDisplay.textContent = file.name;
+      const stem = file.name.replace(/\.[^/.]+$/, "");
+      outputNameInput.value = stem;
+      outputNameInput.disabled = false;
+      convertBtn.disabled = false;
+      statusDiv.textContent = '';
+      openFolderBtn.classList.add('hidden');
+    }
+
+    async function convert() {
+      if (!selectedFile) return;
+
+      convertBtn.disabled = true;
+      progressBar.classList.remove('hidden');
+      progressFill.style.width = '0%';
+      statusDiv.textContent = 'Converting...';
+
+      // Read file as base64
+      const reader = new FileReader();
+      reader.onload = async function() {
+        const b64 = reader.result.split(',')[1];  // remove data:...;base64,
+        try {
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress = Math.min(progress + Math.random() * 20, 90);
+            progressFill.style.width = progress + '%';
+          }, 300);
+
+          const result = await eel.convert_file(b64, selectedFile.name, outputNameInput.value.trim())();
+
+          clearInterval(interval);
+          if (result.success) {
+            progressFill.style.width = '100%';
+            statusDiv.textContent = '✅ ' + result.message;
+            // Store the file path to open folder later
+            window.lastPdfPath = result.file_path;
+            openFolderBtn.classList.remove('hidden');
+          } else {
+            statusDiv.textContent = '❌ ' + result.message;
+            progressFill.style.width = '0%';
+          }
+        } catch (err) {
+          statusDiv.textContent = '❌ Error: ' + err.message;
+          progressFill.style.width = '0%';
+        } finally {
+          convertBtn.disabled = false;
+          setTimeout(() => progressBar.classList.add('hidden'), 1000);
+        }
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+
+    function openFolder() {
+      if (window.lastPdfPath) {
+        eel.open_file_explorer(window.lastPdfPath);
+      }
+    }
+
+    convertBtn.addEventListener('click', convert);
+  </script>
+</body>
+</html>

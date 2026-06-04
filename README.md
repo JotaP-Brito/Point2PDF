@@ -86,7 +86,7 @@ The application window will open automatically.
 ## 🖼️ Customisation
 
 ### Logo
-<img width="1254" height="1254" alt="Point2PDF" src="https://github.com/user-attachments/assets/624cd9d1-efce-4913-8b59-ee5bdc666402" />
+<img width="200" alt="Point2PDF" src="https://github.com/user-attachments/assets/624cd9d1-efce-4913-8b59-ee5bdc666402" />
 
 
 

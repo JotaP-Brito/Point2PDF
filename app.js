@@ -7,6 +7,7 @@ const progressBar = document.getElementById('progress-bar');
 const progressFill = document.getElementById('progress-fill');
 const statusDiv = document.getElementById('status');
 const openFolderBtn = document.getElementById('open-folder-btn');
+const supportLink = document.getElementById('support-link');
 
 let selectedFile = null;
 
@@ -83,6 +84,8 @@ convertBtn.addEventListener('click', async () => {
                 // Save the PDF path for the "Open Folder" button
                 window.lastPdfPath = result.file_path;
                 openFolderBtn.classList.remove('hidden');
+                supportLink.classList.remove('hidden');
+              
             } else {
                 statusDiv.textContent = '❌ ' + result.message;
                 progressFill.style.width = '0%';
@@ -104,3 +107,4 @@ function openFolder() {
         eel.open_file_explorer(window.lastPdfPath);
     }
 }
+

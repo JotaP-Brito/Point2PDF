@@ -1,0 +1,8 @@
+eel
+Pillow
+fpdf2
+mammoth
+weasyprint
+pandas
+openpyxl
+odfpy

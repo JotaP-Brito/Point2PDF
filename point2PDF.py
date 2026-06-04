@@ -28,6 +28,18 @@ def sanitize_filename(name):
 UPLOAD_FOLDER = Path.home() / "PDF_Converter_Output"
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
+
+@eel.expose
+def get_gif_list():
+    gif_dir = Path(__file__).parent / "gifs"
+    print(f"[DEBUG] get_gif_list called – gif_dir exists: {gif_dir.exists()}")
+    if gif_dir.exists():
+        files = [f"gifs/{f.name}" for f in gif_dir.iterdir() if f.suffix.lower() == ".gif"]
+        print(f"[DEBUG] Found {len(files)} GIFs: {files[:5]}...")
+        return files
+    print("[DEBUG] gifs folder not found!")
+    return []
+
 # ------------------------------------------------------------
 # Conversion (simple, reliable, with detailed logs)
 # ------------------------------------------------------------
@@ -155,4 +167,4 @@ def open_file_explorer(path):
 # ------------------------------------------------------------
 if __name__ == "__main__":
     eel.init(Path(__file__).parent)
-    eel.start("index.html", size=(800, 600), port=5004)
+    eel.start("index.html", size=(1920, 1080), port=5004,cmdline_args=['--start-fullscreen'])

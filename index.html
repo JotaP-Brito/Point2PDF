@@ -1,292 +1,428 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
-<meta charset="UTF-8">
-<title>Point2PDF</title>
+  <meta charset="UTF-8">
+  <title>Point2PDF</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-<style>
-* {
-    box-sizing: border-box;
-}
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #1e1e2f;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+    }
 
-body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    /* Background GIF layer */
+    #gif-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
 
-    background: linear-gradient(
-        135deg,
-        #f7f9fc 0%,
-        #eef3f8 100%
-    );
+    #gif-background img {
+      position: absolute;
+      opacity: 1;
+      /* subtle transparency */
+      pointer-events: none;
+    }
 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 30px;
-}
+    /* Main UI container */
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 650px;
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
 
-.container {
-    width: 100%;
-    max-width: 650px;
+    .logo {
+      width: 200px;
+      height: auto;
+      display: block;
+      margin: 0 auto 15px auto;
+    }
 
-    background: white;
+    h1 {
+      margin: 0;
+      font-size: 38px;
+      color: #2e7d32;
+      font-weight: 700;
+    }
 
-    border-radius: 24px;
+    .subtitle {
+      margin-top: 10px;
+      margin-bottom: 30px;
+      color: #666;
+      font-size: 15px;
+    }
 
-    padding: 40px;
+    #drop-zone {
+      border: 2px dashed #cfcfcf;
+      border-radius: 18px;
+      background: #fafafa;
+      padding: 45px 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
 
-    box-shadow:
-        0 12px 40px rgba(0,0,0,0.08);
+    #drop-zone:hover {
+      border-color: #2e7d32;
+      background: #f4fbf5;
+    }
 
-    text-align: center;
-}
+    #drop-zone.dragover {
+      border-color: #2e7d32;
+      background: #e8f5e9;
+      transform: scale(1.01);
+    }
 
-.logo {
-    width: 200px;
-    height: auto;
-    display: block;
-    margin: 0 auto 15px auto;
-}
+    .drop-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
 
-h1 {
-    margin: 0;
-    font-size: 38px;
-    color: #2e7d32;
-    font-weight: 700;
-}
+    .drop-subtitle {
+      margin-top: 8px;
+      color: #777;
+      font-size: 14px;
+    }
 
-.subtitle {
-    margin-top: 10px;
-    margin-bottom: 30px;
+    #file-name {
+      margin-top: 15px;
+      font-weight: 600;
+      color: #2e7d32;
+      min-height: 22px;
+    }
 
-    color: #666;
-    font-size: 15px;
-}
+    .output-name {
+      margin-top: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-#drop-zone {
-    border: 2px dashed #cfcfcf;
-    border-radius: 18px;
+    .output-name label {
+      color: #444;
+      font-weight: 600;
+    }
 
-    background: #fafafa;
+    .output-name input {
+      width: 280px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #d5d5d5;
+      font-size: 15px;
+    }
 
-    padding: 45px 20px;
+    .output-name input:focus {
+      outline: none;
+      border-color: #2e7d32;
+    }
 
-    cursor: pointer;
+    .pdf-label {
+      color: #777;
+      font-weight: 600;
+    }
 
-    transition: all 0.25s ease;
-}
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 26px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
 
-#drop-zone:hover {
-    border-color: #2e7d32;
-    background: #f4fbf5;
-}
+    #convert-btn {
+      margin-top: 25px;
+      width: 100%;
+      background: #2e7d32;
+      color: white;
+    }
 
-#drop-zone.dragover {
-    border-color: #2e7d32;
-    background: #e8f5e9;
-    transform: scale(1.01);
-}
+    #convert-btn:hover:not(:disabled) {
+      background: #1b5e20;
+    }
 
-.drop-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-}
+    #convert-btn:disabled {
+      background: #bdbdbd;
+      cursor: not-allowed;
+    }
 
-.drop-subtitle {
-    margin-top: 8px;
-    color: #777;
-    font-size: 14px;
-}
+    #open-folder-btn {
+      margin-top: 15px;
+      width: 100%;
+      background: #1565c0;
+      color: white;
+    }
 
-#file-name {
-    margin-top: 15px;
-    font-weight: 600;
-    color: #2e7d32;
-    min-height: 22px;
-}
+    #open-folder-btn:hover {
+      background: #0d47a1;
+    }
 
-.output-name {
-    margin-top: 25px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
+    #progress-bar {
+      margin-top: 25px;
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
 
-.output-name label {
-    color: #444;
-    font-weight: 600;
-}
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #2e7d32;
+      transition: width 0.25s ease;
+    }
 
-.output-name input {
-    width: 280px;
+    .hidden {
+      display: none;
+    }
 
-    padding: 12px;
-
-    border-radius: 10px;
-    border: 1px solid #d5d5d5;
-
-    font-size: 15px;
-}
-
-.output-name input:focus {
-    outline: none;
-    border-color: #2e7d32;
-}
-
-.pdf-label {
-    color: #777;
-    font-weight: 600;
-}
-
-button {
-    border: none;
-    border-radius: 12px;
-
-    padding: 14px 26px;
-
-    font-size: 15px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition: 0.2s ease;
-}
-
-#convert-btn {
-    margin-top: 25px;
-    width: 100%;
-
-    background: #2e7d32;
-    color: white;
-}
-
-#convert-btn:hover:not(:disabled) {
-    background: #1b5e20;
-}
-
-#convert-btn:disabled {
-    background: #bdbdbd;
-    cursor: not-allowed;
-}
-
-#open-folder-btn {
-    margin-top: 15px;
-    width: 100%;
-
-    background: #1565c0;
-    color: white;
-}
-
-#open-folder-btn:hover {
-    background: #0d47a1;
-}
-
-#progress-bar {
-    margin-top: 25px;
-
-    width: 100%;
-    height: 8px;
-
-    background: #e0e0e0;
-
-    border-radius: 999px;
-
-    overflow: hidden;
-}
-
-#progress-fill {
-    height: 100%;
-    width: 0%;
-
-    background: #2e7d32;
-
-    transition: width 0.25s ease;
-}
-
-.hidden {
-    display: none;
-}
-
-#status {
-    margin-top: 15px;
-
-    min-height: 22px;
-
-    font-size: 14px;
-    font-weight: 500;
-}
-</style>
-
+    #status {
+      margin-top: 15px;
+      min-height: 22px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container">
+  <!-- Floating GIF background -->
+  <div id="gif-background"></div>
 
+  <!-- Main app container -->
+  <div class="container">
+    <img src="Point2PDF.png" alt="Point2PDF Logo" class="logo">
+    <h1>Point2PDF</h1>
+    <div class="subtitle">Free • Fast • Simple Document to PDF Converter</div>
 
-<img src="Point2PDF.png" alt="Point2PDF Logo" class="logo">
-
-<h1>Point2PDF</h1>
-
-<div class="subtitle">
-    Free • Fast • Simple Document to PDF Converter
-</div>
-
-<div id="drop-zone">
-    <div class="drop-title">
-        Drag & Drop Your File
+    <div id="drop-zone">
+      <div class="drop-title">Drag &amp; Drop Your File</div>
+      <div class="drop-subtitle">or click to browse from your computer</div>
+      <input type="file" id="file-input" hidden>
     </div>
 
-    <div class="drop-subtitle">
-        or click to browse from your computer
+    <div id="file-name"></div>
+
+    <div class="output-name">
+      <label for="output-name-input">Save as</label>
+      <input type="text" id="output-name-input" placeholder="document" disabled>
+      <span class="pdf-label">.pdf</span>
     </div>
 
-    <input type="file" id="file-input" hidden>
-</div>
+    <button id="convert-btn" disabled>Convert to PDF</button>
 
-<div id="file-name"></div>
+    <div id="progress-bar" class="hidden">
+      <div id="progress-fill"></div>
+    </div>
 
-<div class="output-name">
-    <label for="output-name-input">Save as</label>
+    <div id="status"></div>
+    <a href="https://github.com/JotaP-Brito/Point2PDF" target="_blank">Your Support is DEEPLY aprecciated!</a>
 
-    <input
-        type="text"
-        id="output-name-input"
-        placeholder="document"
-        disabled>
+    <button id="open-folder-btn" class="hidden" onclick="openFolder()">📂 Open Output Folder</button>
+  </div>
 
-    <span class="pdf-label">.pdf</span>
-</div>
+  <script type="text/javascript" src="/eel.js"></script>
+  <script>
+    // ─────────────────────────────────────────────
+    // 1. Main app logic (file drop, conversion)
+    // ─────────────────────────────────────────────
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    const outputNameInput = document.getElementById('output-name-input');
+    const convertBtn = document.getElementById('convert-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const statusDiv = document.getElementById('status');
+    const openFolderBtn = document.getElementById('open-folder-btn');
 
-<button id="convert-btn" disabled>
-    Convert to PDF
-</button>
+    let selectedFile = null;
 
-<div id="progress-bar" class="hidden">
-    <div id="progress-fill"></div>
-</div>
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length) handleFile(files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
 
-<div id="status"></div>
+    function handleFile(file) {
+      selectedFile = file;
+      fileNameDisplay.textContent = file.name;
+      const stem = file.name.replace(/\.[^/.]+$/, "");
+      outputNameInput.value = stem;
+      outputNameInput.disabled = false;
+      convertBtn.disabled = false;
+      statusDiv.textContent = '';
+      openFolderBtn.classList.add('hidden');
+    }
 
-<button
-    id="open-folder-btn"
-    class="hidden"
-    onclick="openFolder()">
-    📂 Open Output Folder
-</button>
+    convertBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      convertBtn.disabled = true;
+      progressBar.classList.remove('hidden');
+      progressFill.style.width = '0%';
+      statusDiv.textContent = 'Converting...';
 
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const b64 = reader.result.split(',')[1];
+        try {
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress = Math.min(progress + Math.random() * 20, 90);
+            progressFill.style.width = progress + '%';
+          }, 300);
 
-</div>
+          const result = await eel.convert_file(b64, selectedFile.name, outputNameInput.value.trim())();
+          clearInterval(interval);
 
-<script type="text/javascript" src="/eel.js"></script>
+          if (result.success) {
+            progressFill.style.width = '100%';
+            statusDiv.textContent = '✅ ' + result.message;
+            window.lastPdfPath = result.file_path;
+            openFolderBtn.classList.remove('hidden');
+          } else {
+            statusDiv.textContent = '❌ ' + result.message;
+            progressFill.style.width = '0%';
+          }
+        } catch (err) {
+          statusDiv.textContent = '❌ Error: ' + err.message;
+          progressFill.style.width = '0%';
+        } finally {
+          convertBtn.disabled = false;
+          setTimeout(() => progressBar.classList.add('hidden'), 1000);
+        }
+      };
+      reader.readAsDataURL(selectedFile);
+    });
 
-<script src="app.js"></script>
+    function openFolder() {
+      if (window.lastPdfPath) {
+        eel.open_file_explorer(window.lastPdfPath);
+      }
+    }
 
+    // ─────────────────────────────────────────────
+    // 2. Dynamic GIF background
+    // ─────────────────────────────────────────────
+    let gifFiles = [];                      // will be filled from Python
+    const MAX_GIFS_ON_SCREEN = 20;          // keep performance in check
+    const GIF_SPAWN_INTERVAL = 1500;        // milliseconds
+    const MIN_SIZE = 200;
+    const MAX_SIZE = 200;
+    const MIN_SPEED = 0.3;
+    const MAX_SPEED = 1.2;
+
+    const backgroundLayer = document.getElementById('gif-background');
+
+    // Fetch GIF list from Python
+    async function loadGifList() {
+      document.getElementById('status').textContent = 'Loading GIFs...';
+      try {
+        const files = await eel.get_gif_list()();
+        document.getElementById('status').textContent = `Found ${files.length} GIFs`;
+        if (files && files.length > 0) {
+          gifFiles = files;
+          setInterval(spawnRandomGif, GIF_SPAWN_INTERVAL);
+          animateBackground();
+        } else {
+          document.getElementById('status').textContent = 'No GIFs found in gifs folder.';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error loading GIFs: ' + err;
+      }
+    }
+
+    function spawnRandomGif() {
+      if (gifFiles.length === 0) return;
+
+      const img = document.createElement("img");
+      img.src = gifFiles[Math.floor(Math.random() * gifFiles.length)];
+
+      const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
+      img.width = size;
+      img.height = size;
+
+      // Random starting position anywhere on screen
+      const x = Math.random() * window.innerWidth;
+      const y = Math.random() * window.innerHeight;
+      img.style.left = x + "px";
+      img.style.top = y + "px";
+
+      // Random velocity for floating movement
+      img._vx = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
+      img._vy = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
+
+      backgroundLayer.appendChild(img);
+
+      // Remove oldest GIF if we exceed the limit
+      while (backgroundLayer.children.length > MAX_GIFS_ON_SCREEN) {
+        backgroundLayer.removeChild(backgroundLayer.firstChild);
+      }
+    }
+
+    function animateBackground() {
+      const imgs = backgroundLayer.querySelectorAll("img");
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      imgs.forEach(img => {
+        let x = parseFloat(img.style.left) + img._vx;
+        let y = parseFloat(img.style.top) + img._vy;
+
+        // Wrap around when hitting edges
+        if (x > w) x = -img.width;
+        if (x < -img.width) x = w;
+        if (y > h) y = -img.height;
+        if (y < -img.height) y = h;
+
+        img.style.left = x + "px";
+        img.style.top = y + "px";
+      });
+
+      requestAnimationFrame(animateBackground);
+    }
+
+    // Start after page loads
+    window.addEventListener("load", loadGifList);
+  </script>
 </body>
+
 </html>

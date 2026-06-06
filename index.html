@@ -1,330 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <title>Point2PDFGIF</title>
+  <title>Point2PDF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
+    :root {
+      --black:   #0d0d0d;
+      --white:   #f5f0e8;
+      --yellow:  #ffe135;
+      --green:   #00e676;
+      --red:     #ff3d57;
+      --card-bg: rgba(15, 15, 15, 0.82);
+      --border:  2px solid var(--white);
+      --radius:  0px; /* brutalist: no rounding */
     }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      margin: 0;
       min-height: 100vh;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #1e1e2f;
+      background: var(--black);
+      font-family: 'DM Mono', monospace;
+      color: var(--white);
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 30px;
+      padding: 24px;
+      overflow-x: hidden;
     }
 
-    /* Background GIF layer */
+    /* ── GIF background ── */
     #gif-background {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
     }
-
-    #support-link {
-      background-color: rgb(0, 179, 164);
-      color: #000000;
-      transition: background-color 1s, box-shadow 0.15s;
-      height: auto;
-      width: auto;
-      font-weight: 300;
-      margin-left: 10px;
-      margin-top: 15px;
-      margin-bottom: -10px;
-
-
-    }
-
-    #support-link:hover {
-      background-color: rgb(235, 10, 190);
-      color: #010000;
-      box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
-    }
-
     #gif-background img {
       position: absolute;
-      opacity: 1;
-      /* subtle transparency */
       pointer-events: none;
+      image-rendering: pixelated;
     }
 
-    /* Main UI container */
-    .container {
+    /* ── Scanline overlay for retro feel ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+    }
+
+    /* ── Card ── */
+    .card {
       position: relative;
-      z-index: 1;
+      z-index: 3;
       width: 100%;
-      max-width: 650px;
-      background: white;
-      border-radius: 24px;
-      padding: 40px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-      text-align: center;
+      max-width: 560px;
+      background: var(--card-bg);
+      border: var(--border);
+      backdrop-filter: blur(12px);
+      padding: 36px 36px 32px;
+      /* brutalist shadow offset */
+      box-shadow: 6px 6px 0px var(--yellow);
+      animation: slideIn 0.4s cubic-bezier(.22,1,.36,1) both;
     }
 
-    .logo {
-      width: 200px;
-      height: auto;
-      display: block;
-      margin: -40px auto 0px auto;
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-
-    #drop-zone {
-      border: 2px dashed #cfcfcf;
-      border-radius: 18px;
-      background: #fafafa;
-      padding: 45px 20px;
-      cursor: pointer;
-      transition: all 0.25s ease;
-    }
-
-    #drop-zone:hover {
-      border-color: #2e7d32;
-      background: #f4fbf5;
-    }
-
-    #drop-zone.dragover {
-      border-color: #2e7d32;
-      background: #e8f5e9;
-      transform: scale(1.01);
-    }
-
-    .drop-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .drop-subtitle {
-      margin-top: 8px;
-      color: #777;
-      font-size: 14px;
-    }
-
-    #file-name {
-      margin-top: 15px;
-      font-weight: 600;
-      color: #2e7d32;
-      min-height: 22px;
-    }
-
-    .output-name {
-      margin-top: 25px;
+    /* ── Header ── */
+    .header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .logo {
+      width: 68px;
+      height: auto;
+      flex-shrink: 0;
+      filter: drop-shadow(3px 3px 0 var(--yellow));
+    }
+    .title-block {}
+    .title-block h1 {
+      font-family: 'Bangers', cursive;
+      font-size: 3rem;
+      letter-spacing: 3px;
+      line-height: 1;
+      color: var(--yellow);
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+    }
+    .title-block p {
+      font-size: 0.65rem;
+      color: rgba(245,240,232,0.5);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 2px;
     }
 
-    .output-name label {
-      color: #444;
-      font-weight: 600;
-    }
-
-    .output-name input {
-      width: 280px;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #d5d5d5;
-      font-size: 15px;
-    }
-
-    .output-name input:focus {
-      outline: none;
-      border-color: #2e7d32;
-    }
-
-    .pdf-label {
-      color: #777;
-      font-weight: 600;
-    }
-
-    button {
-      border: none;
-      border-radius: 12px;
-      padding: 14px 26px;
-      font-size: 15px;
-      font-weight: 600;
+    /* ── Drop zone ── */
+    #drop-zone {
+      border: 2px dashed rgba(245,240,232,0.3);
+      padding: 36px 20px;
+      text-align: center;
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      background: rgba(255,255,255,0.03);
     }
-
-    #convert-btn {
-      margin: 25px auto 0 auto;
-      /* auto left/right = centre */
-      width: 220px;
-      /* or any width you like */
+    #drop-zone:hover,
+    #drop-zone.dragover {
+      border-color: var(--yellow);
+      background: rgba(255,225,53,0.05);
+    }
+    #drop-zone.dragover {
+      transform: scale(1.01);
+    }
+    .drop-icon {
+      font-size: 2.4rem;
+      margin-bottom: 10px;
       display: block;
-      /* needed for margin:auto to work */
-      background: #2e7d32;
-      color: white;
-      margin-bottom: 20px;
-
+      transition: transform 0.2s;
+    }
+    #drop-zone:hover .drop-icon { transform: scale(1.15) rotate(-4deg); }
+    .drop-title {
+      font-family: 'Bangers', cursive;
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+    .drop-sub {
+      font-size: 0.68rem;
+      color: rgba(245,240,232,0.4);
+      margin-top: 4px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #file-name {
+      margin-top: 10px;
+      font-size: 0.72rem;
+      color: var(--green);
+      min-height: 18px;
+      letter-spacing: 1px;
+      font-weight: 500;
+      word-break: break-all;
     }
 
+    /* ── Output name row ── */
+    .output-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-top: 20px;
+      border: var(--border);
+    }
+    .output-row label {
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: var(--white);
+      color: var(--black);
+      white-space: nowrap;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .output-row input {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--white);
+      outline: none;
+      min-width: 0;
+    }
+    .output-row input:disabled { opacity: 0.3; cursor: not-allowed; }
+    .output-row input::placeholder { color: rgba(245,240,232,0.25); }
+    .ext-tag {
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      letter-spacing: 1px;
+      color: var(--yellow);
+      background: rgba(255,225,53,0.08);
+      border-left: var(--border);
+      flex-shrink: 0;
+      font-weight: 500;
+    }
+
+    /* ── Convert button ── */
+    #convert-btn {
+      display: block;
+      width: 100%;
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 2px solid var(--black);
+      font-family: 'Bangers', cursive;
+      font-size: 1.4rem;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 4px 4px 0 var(--white);
+      position: relative;
+    }
     #convert-btn:hover:not(:disabled) {
-      background: #1b5e20;
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--white);
     }
-
+    #convert-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 var(--white);
+    }
     #convert-btn:disabled {
-      background: #bdbdbd;
+      background: rgba(245,240,232,0.15);
+      color: rgba(245,240,232,0.3);
       cursor: not-allowed;
+      box-shadow: none;
     }
 
-    #open-folder-btn {
-      margin-top: 15px;
-      width: 100%;
-      background: #1565c0;
-      color: white;
-    }
-
-    #open-folder-btn:hover {
-      background: #0d47a1;
-    }
-
+    /* ── Progress bar ── */
     #progress-bar {
-      margin-top: 25px;
-      width: 100%;
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 999px;
+      margin-top: 18px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
       overflow: hidden;
-      margin-bottom: 25px;
     }
-
     #progress-fill {
       height: 100%;
       width: 0%;
-      background: #2e7d32;
+      background: linear-gradient(90deg, var(--yellow), var(--green));
       transition: width 0.25s ease;
+      box-shadow: 0 0 8px var(--yellow);
     }
 
-    .hidden {
-      display: none;
-    }
-
+    /* ── Status ── */
     #status {
-      margin-top: 15px;
-      min-height: 22px;
-      font-size: 14px;
+      margin-top: 14px;
+      min-height: 20px;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      color: rgba(245,240,232,0.6);
+    }
+    #status.success { color: var(--green); }
+    #status.error   { color: var(--red); }
+
+    /* ── Action buttons row ── */
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 10px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
       font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: var(--border);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .action-btn:hover {
+      transform: translate(-2px, -2px);
+    }
+    #open-folder-btn {
+      background: var(--white);
+      color: var(--black);
+      box-shadow: 3px 3px 0 rgba(255,255,255,0.3);
+    }
+    #open-folder-btn:hover { box-shadow: 5px 5px 0 rgba(255,255,255,0.3); }
+
+    #support-link {
+      background: transparent;
+      color: var(--green);
+      border-color: var(--green);
+      box-shadow: 3px 3px 0 var(--green);
+    }
+    #support-link:hover { box-shadow: 5px 5px 0 var(--green); }
+
+    .hidden { display: none !important; }
+
+    /* ── Supported formats strip ── */
+    .formats-strip {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .fmt-tag {
+      padding: 3px 8px;
+      font-size: 0.6rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(245,240,232,0.55);
+    }
+    .fmt-tag.native {
+      border-color: rgba(0, 230, 118, 0.4);
+      color: rgba(0, 230, 118, 0.8);
     }
   </style>
 </head>
-
 <body>
 
-  <!-- Floating GIF background -->
   <div id="gif-background"></div>
 
-  <!-- Main app container -->
-  <div class="container">
-    <img src="Point2PDF.png" alt="Point2PDF Logo" class="logo">
+  <div class="card">
+    <!-- Header -->
+    <div class="header">
+      <img src="Point2PDF.png" alt="Point2PDF" class="logo">
+      <div class="title-block">
+        <h1>Point2PDF</h1>
+        <p>Drop it. Convert it. Done.</p>
+      </div>
+    </div>
 
-
+    <!-- Drop zone -->
     <div id="drop-zone">
-      <div class="drop-title">Drag &amp; Drop Your File</div>
-      <div class="drop-subtitle">or click to browse from your computer</div>
+      <span class="drop-icon">📄</span>
+      <div class="drop-title">Drag &amp; Drop your file here</div>
+      <div class="drop-sub">or click to browse</div>
       <input type="file" id="file-input" hidden>
     </div>
-
     <div id="file-name"></div>
 
-    <div class="output-name">
+    <!-- Output name -->
+    <div class="output-row">
       <label for="output-name-input">Save as</label>
-      <input type="text" id="output-name-input" placeholder="document" disabled>
-      <span class="pdf-label">.pdf</span>
+      <input type="text" id="output-name-input" placeholder="filename" disabled>
+      <span class="ext-tag">.PDF</span>
     </div>
 
-    <button id="convert-btn" disabled>Convert to PDF</button>
+    <!-- Convert -->
+    <button id="convert-btn" disabled>⚡ CONVERT TO PDF</button>
 
+    <!-- Progress -->
     <div id="progress-bar" class="hidden">
       <div id="progress-fill"></div>
     </div>
 
-
-
+    <!-- Status -->
     <div id="status"></div>
 
-    <button id="open-folder-btn" class="hidden" onclick="openFolder()">📂 Open Output Folder</button>
-
-    <div>
-      <button id="support-link" class="hidden"
-        onclick="window.open('https://github.com/JotaP-Brito/Point2PDF','_blank')">Support US on Github🤖</button>
-
+    <!-- Action buttons -->
+    <div class="action-row hidden" id="action-row">
+      <button class="action-btn" id="open-folder-btn" onclick="openFolder()">📂 Open Folder</button>
+      <button class="action-btn" id="support-link" onclick="window.open('https://github.com/JotaP-Brito/Point2PDF','_blank')">★ Star on GitHub</button>
     </div>
 
-
-
-
-
+    <!-- Format tags -->
+    <div class="formats-strip">
+      <span class="fmt-tag native">JPG</span>
+      <span class="fmt-tag native">PNG</span>
+      <span class="fmt-tag native">GIF</span>
+      <span class="fmt-tag native">BMP</span>
+      <span class="fmt-tag native">TXT</span>
+      <span class="fmt-tag native">HTML</span>
+      <span class="fmt-tag native">DOCX</span>
+      <span class="fmt-tag native">XLSX</span>
+      <span class="fmt-tag native">CSV</span>
+      <span class="fmt-tag native">ODS</span>
+      <span class="fmt-tag">PPTX</span>
+      <span class="fmt-tag">DOC</span>
+      <span class="fmt-tag">XLS</span>
+      <span class="fmt-tag">ODP</span>
+    </div>
   </div>
 
   <script type="text/javascript" src="/eel.js"></script>
   <script>
-    // ─────────────────────────────────────────────
-    // 1. Main app logic (file drop, conversion)
-    // ─────────────────────────────────────────────
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const fileNameDisplay = document.getElementById('file-name');
-    const outputNameInput = document.getElementById('output-name-input');
-    const convertBtn = document.getElementById('convert-btn');
-    const progressBar = document.getElementById('progress-bar');
-    const progressFill = document.getElementById('progress-fill');
-    const statusDiv = document.getElementById('status');
-    const openFolderBtn = document.getElementById('open-folder-btn');
-    const supportLink = document.getElementById('support-link');
+    // ─── DOM refs ───────────────────────────────────────────────────────────
+    const dropZone       = document.getElementById('drop-zone');
+    const fileInput      = document.getElementById('file-input');
+    const fileNameDisplay= document.getElementById('file-name');
+    const outputNameInput= document.getElementById('output-name-input');
+    const convertBtn     = document.getElementById('convert-btn');
+    const progressBar    = document.getElementById('progress-bar');
+    const progressFill   = document.getElementById('progress-fill');
+    const statusDiv      = document.getElementById('status');
+    const actionRow      = document.getElementById('action-row');
 
     let selectedFile = null;
 
+    // ─── Drop zone ──────────────────────────────────────────────────────────
     dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
-    });
-    dropZone.addEventListener('drop', (e) => {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
-      const files = e.dataTransfer.files;
-      if (files.length) handleFile(files[0]);
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', e => {
       if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
     function handleFile(file) {
       selectedFile = file;
-      fileNameDisplay.textContent = file.name;
-      const stem = file.name.replace(/\.[^/.]+$/, "");
-      outputNameInput.value = stem;
+      fileNameDisplay.textContent = '→ ' + file.name;
+      outputNameInput.value = file.name.replace(/\.[^/.]+$/, "");
       outputNameInput.disabled = false;
       convertBtn.disabled = false;
-      statusDiv.textContent = '';
-      openFolderBtn.classList.add('hidden');
+      setStatus('', '');
+      actionRow.classList.add('hidden');
+      // Update drop icon based on type
+      const ext = file.name.split('.').pop().toLowerCase();
+      const icons = { jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🎞️', bmp:'🖼️', txt:'📝', html:'🌐', docx:'📘', xlsx:'📊', csv:'📊', ods:'📊', pdf:'📄', pptx:'📑' };
+      dropZone.querySelector('.drop-icon').textContent = icons[ext] || '📄';
     }
 
+    function setStatus(msg, type) {
+      statusDiv.textContent = msg;
+      statusDiv.className = type || '';
+    }
+
+    // ─── Convert ─────────────────────────────────────────────────────────────
     convertBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
       convertBtn.disabled = true;
       progressBar.classList.remove('hidden');
       progressFill.style.width = '0%';
-      statusDiv.textContent = 'Converting...';
+      setStatus('Converting...', '');
 
       const reader = new FileReader();
       reader.onload = async function () {
@@ -332,124 +450,93 @@
         try {
           let progress = 0;
           const interval = setInterval(() => {
-            progress = Math.min(progress + Math.random() * 20, 90);
+            progress = Math.min(progress + Math.random() * 18, 88);
             progressFill.style.width = progress + '%';
-          }, 300);
+          }, 280);
 
           const result = await eel.convert_file(b64, selectedFile.name, outputNameInput.value.trim())();
           clearInterval(interval);
 
-          if (result.success) {
+          if (result && result.success) {
             progressFill.style.width = '100%';
-            statusDiv.textContent = '✅ ' + result.message;
+            setStatus('✓ ' + result.message, 'success');
             window.lastPdfPath = result.file_path;
-            openFolderBtn.classList.remove('hidden');
-            supportLink.classList.remove('hidden');
+            actionRow.classList.remove('hidden');
           } else {
-            statusDiv.textContent = '❌ ' + result.message;
+            setStatus('✗ ' + (result ? result.message : 'Unknown error'), 'error');
             progressFill.style.width = '0%';
           }
         } catch (err) {
-          statusDiv.textContent = '❌ Error: ' + err.message;
+          setStatus('✗ ' + err.message, 'error');
           progressFill.style.width = '0%';
         } finally {
           convertBtn.disabled = false;
-          setTimeout(() => progressBar.classList.add('hidden'), 1000);
+          setTimeout(() => progressBar.classList.add('hidden'), 1200);
         }
       };
       reader.readAsDataURL(selectedFile);
     });
 
     function openFolder() {
-      if (window.lastPdfPath) {
-        eel.open_file_explorer(window.lastPdfPath);
-      }
+      if (window.lastPdfPath) eel.open_file_explorer(window.lastPdfPath);
     }
 
-    // ─────────────────────────────────────────────
-    // 2. Dynamic GIF background
-    // ─────────────────────────────────────────────
-    let gifFiles = [];                      // will be filled from Python
-    const MAX_GIFS_ON_SCREEN = 20;          // keep performance in check
-    const GIF_SPAWN_INTERVAL = 1500;        // milliseconds
-    const MIN_SIZE = 200;
-    const MAX_SIZE = 200;
-    const MIN_SPEED = 0.3;
-    const MAX_SPEED = 1.2;
+    // ─── GIF background ──────────────────────────────────────────────────────
+    const MAX_GIFS      = 20;
+    const SPAWN_INTERVAL= 1500;
+    const MIN_SIZE      = 140;
+    const MAX_SIZE      = 220;
+    const MIN_SPEED     = 0.3;
+    const MAX_SPEED     = 1.1;
 
-    const backgroundLayer = document.getElementById('gif-background');
+    const bgLayer = document.getElementById('gif-background');
+    let gifFiles  = [];
 
-    // Fetch GIF list from Python
     async function loadGifList() {
-      document.getElementById('status').textContent = 'Loading GIFs...';
       try {
         const files = await eel.get_gif_list()();
-        document.getElementById('status').textContent = `Found ${files.length} GIFs`;
         if (files && files.length > 0) {
           gifFiles = files;
-          setInterval(spawnRandomGif, GIF_SPAWN_INTERVAL);
-          animateBackground();
-        } else {
-          document.getElementById('status').textContent = 'No GIFs found in gifs folder.';
+          setInterval(spawnGif, SPAWN_INTERVAL);
+          animate();
         }
-      } catch (err) {
-        document.getElementById('status').textContent = 'Error loading GIFs: ' + err;
-      }
+      } catch (_) { /* no GIFs — silent */ }
     }
 
-    function spawnRandomGif() {
-      if (gifFiles.length === 0) return;
-
-      const img = document.createElement("img");
+    function spawnGif() {
+      if (!gifFiles.length) return;
+      const img = document.createElement('img');
       img.src = gifFiles[Math.floor(Math.random() * gifFiles.length)];
-
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
-      img.width = size;
-      img.height = size;
-
-      // Random starting position anywhere on screen
-      const x = Math.random() * window.innerWidth;
-      const y = Math.random() * window.innerHeight;
-      img.style.left = x + "px";
-      img.style.top = y + "px";
-
-      // Random velocity for floating movement
+      img.style.width  = size + 'px';
+      img.style.height = size + 'px';
+      img.style.left   = (Math.random() * window.innerWidth)  + 'px';
+      img.style.top    = (Math.random() * window.innerHeight) + 'px';
+      img.style.opacity= (0.55 + Math.random() * 0.4).toString();
       img._vx = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
       img._vy = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
-
-      backgroundLayer.appendChild(img);
-
-      // Remove oldest GIF if we exceed the limit
-      while (backgroundLayer.children.length > MAX_GIFS_ON_SCREEN) {
-        backgroundLayer.removeChild(backgroundLayer.firstChild);
-      }
+      bgLayer.appendChild(img);
+      while (bgLayer.children.length > MAX_GIFS) bgLayer.removeChild(bgLayer.firstChild);
     }
 
-    function animateBackground() {
-      const imgs = backgroundLayer.querySelectorAll("img");
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
+    function animate() {
+      const imgs = bgLayer.querySelectorAll('img');
+      const W = window.innerWidth, H = window.innerHeight;
       imgs.forEach(img => {
         let x = parseFloat(img.style.left) + img._vx;
-        let y = parseFloat(img.style.top) + img._vy;
-
-        // Wrap around when hitting edges
-        if (x > w) x = -img.width;
-        if (x < -img.width) x = w;
-        if (y > h) y = -img.height;
-        if (y < -img.height) y = h;
-
-        img.style.left = x + "px";
-        img.style.top = y + "px";
+        let y = parseFloat(img.style.top)  + img._vy;
+        const w = parseFloat(img.style.width);
+        if (x > W)  x = -w;
+        if (x < -w) x = W;
+        if (y > H)  y = -parseFloat(img.style.height);
+        if (y < -parseFloat(img.style.height)) y = H;
+        img.style.left = x + 'px';
+        img.style.top  = y + 'px';
       });
-
-      requestAnimationFrame(animateBackground);
+      requestAnimationFrame(animate);
     }
 
-    // Start after page loads
-    window.addEventListener("load", loadGifList);
+    window.addEventListener('load', loadGifList);
   </script>
 </body>
-
 </html>

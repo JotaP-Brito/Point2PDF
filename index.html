@@ -66,12 +66,11 @@
       position: relative;
       z-index: 3;
       width: 100%;
-      max-width: 560px;
+      max-width: 720px;   /* ← wider to fit the banner logo */
       background: var(--card-bg);
       border: var(--border);
       backdrop-filter: blur(12px);
       padding: 36px 36px 32px;
-      /* brutalist shadow offset */
       box-shadow: 6px 6px 0px var(--yellow);
       animation: slideIn 0.4s cubic-bezier(.22,1,.36,1) both;
     }
@@ -84,31 +83,49 @@
     /* ── Header ── */
     .header {
       display: flex;
+      justify-content: center;
       align-items: center;
-      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .logo {
+      width: 420px;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      filter:
+        drop-shadow(5px 5px 0 var(--yellow))
+        drop-shadow(0 0 18px rgba(255,225,53,0.25));
+      transition: transform 0.25s ease;
+    }
+
+    .logo:hover {
+      transform: scale(1.03);
+    }
+
+    .title-block {
+      text-align: center;
       margin-bottom: 28px;
     }
-    .logo {
-      width: 68px;
-      height: auto;
-      flex-shrink: 0;
-      filter: drop-shadow(3px 3px 0 var(--yellow));
-    }
-    .title-block {}
+
     .title-block h1 {
       font-family: 'Bangers', cursive;
-      font-size: 3rem;
-      letter-spacing: 3px;
+      font-size: 3.2rem;
+      letter-spacing: 4px;
       line-height: 1;
       color: var(--yellow);
-      text-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+      text-shadow:
+        4px 4px 0 rgba(0,0,0,0.6),
+        0 0 18px rgba(255,225,53,0.15);
     }
+
     .title-block p {
-      font-size: 0.65rem;
-      color: rgba(245,240,232,0.5);
-      letter-spacing: 2px;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: rgba(245,240,232,0.7);
+      letter-spacing: 3px;
       text-transform: uppercase;
-      margin-top: 2px;
     }
 
     /* ── Drop zone ── */
@@ -328,13 +345,15 @@
   <div id="gif-background"></div>
 
   <div class="card">
-    <!-- Header -->
+    <!-- Header – logo now a full-width banner -->
     <div class="header">
-      <img src="Point2PDF.png" alt="Point2PDF" class="logo">
-      <div class="title-block">
-        <h1>Point2PDF</h1>
-        <p>Drop it. Convert it. Done.</p>
-      </div>
+      <img src="NewLogo.png" alt="Point2PDF" class="logo">
+    </div>
+
+    <!-- Title block below the logo -->
+    <div class="title-block">
+      <h1>Point2PDF</h1>
+      <p>Drop it. Convert it. Done.</p>
     </div>
 
     <!-- Drop zone -->
@@ -425,7 +444,6 @@
       convertBtn.disabled = false;
       setStatus('', '');
       actionRow.classList.add('hidden');
-      // Update drop icon based on type
       const ext = file.name.split('.').pop().toLowerCase();
       const icons = { jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🎞️', bmp:'🖼️', txt:'📝', html:'🌐', docx:'📘', xlsx:'📊', csv:'📊', ods:'📊', pdf:'📄', pptx:'📑' };
       dropZone.querySelector('.drop-icon').textContent = icons[ext] || '📄';

@@ -15,7 +15,9 @@ import mammoth
 from weasyprint import HTML
 from fpdf import FPDF
 import pandas as pd
-from weasyprint import HTML
+import pytesseract
+from io import BytesIO
+
 
 
 

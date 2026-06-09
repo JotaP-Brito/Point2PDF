@@ -6,6 +6,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* same brutalist styles as before, unchanged */
     :root {
       --black:   #0d0d0d;
       --white:   #f5f0e8;
@@ -14,11 +15,8 @@
       --red:     #ff3d57;
       --card-bg: rgba(15, 15, 15, 0.82);
       --border:  2px solid var(--white);
-      --radius:  0px; /* brutalist: no rounding */
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       min-height: 100vh;
       background: var(--black);
@@ -30,313 +28,148 @@
       padding: 24px;
       overflow-x: hidden;
     }
-
-    /* ── GIF background ── */
     #gif-background {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
     }
     #gif-background img {
-      position: absolute;
-      pointer-events: none;
-      image-rendering: pixelated;
+      position: absolute; pointer-events: none; image-rendering: pixelated;
     }
-
-    /* ── Scanline overlay for retro feel ── */
     body::after {
       content: '';
-      position: fixed;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.07) 2px,
-        rgba(0,0,0,0.07) 4px
-      );
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
     }
-
-    /* ── Card ── */
     .card {
-      position: relative;
-      z-index: 3;
-      width: 100%;
-      max-width: 720px;   /* ← wider to fit the banner logo */
-      background: var(--card-bg);
-      border: var(--border);
-      backdrop-filter: blur(12px);
-      padding: 36px 36px 32px;
+      position: relative; z-index: 3; width: 100%; max-width: 720px;
+      background: var(--card-bg); border: var(--border);
+      backdrop-filter: blur(12px); padding: 36px 36px 32px;
       box-shadow: 6px 6px 0px var(--yellow);
       animation: slideIn 0.4s cubic-bezier(.22,1,.36,1) both;
     }
-
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(28px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
-    /* ── Header ── */
     .header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-bottom: 12px;
+      display: flex; justify-content: center; align-items: center; margin-bottom: 12px;
     }
-
     .logo {
-      width: 420px;
-      max-width: 100%;
-      height: auto;
-      display: block;
-      object-fit: contain;
-      filter:
-        drop-shadow(5px 5px 0 var(--yellow))
-        drop-shadow(0 0 18px rgba(255,225,53,0.25));
+      width: 420px; max-width: 100%; height: auto; display: block; object-fit: contain;
+      filter: drop-shadow(5px 5px 0 var(--yellow)) drop-shadow(0 0 18px rgba(255,225,53,0.25));
       transition: transform 0.25s ease;
     }
-
-    .logo:hover {
-      transform: scale(1.03);
-    }
-
-    .title-block {
-      text-align: center;
-      margin-bottom: 28px;
-    }
-
+    .logo:hover { transform: scale(1.03); }
+    .title-block { text-align: center; margin-bottom: 28px; }
     .title-block h1 {
-      font-family: 'Bangers', cursive;
-      font-size: 3.2rem;
-      letter-spacing: 4px;
-      line-height: 1;
-      color: var(--yellow);
-      text-shadow:
-        4px 4px 0 rgba(0,0,0,0.6),
-        0 0 18px rgba(255,225,53,0.15);
+      font-family: 'Bangers', cursive; font-size: 3.2rem; letter-spacing: 4px; line-height: 1;
+      color: var(--yellow); text-shadow: 4px 4px 0 rgba(0,0,0,0.6), 0 0 18px rgba(255,225,53,0.15);
     }
-
     .title-block p {
-      margin-top: 6px;
-      font-size: 0.75rem;
-      color: rgba(245,240,232,0.7);
-      letter-spacing: 3px;
-      text-transform: uppercase;
+      margin-top: 6px; font-size: 0.75rem; color: rgba(245,240,232,0.7); letter-spacing: 3px; text-transform: uppercase;
     }
-
-    /* ── Drop zone ── */
     #drop-zone {
-      border: 2px dashed rgba(245,240,232,0.3);
-      padding: 36px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-      background: rgba(255,255,255,0.03);
+      border: 2px dashed rgba(245,240,232,0.3); padding: 36px 20px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s; background: rgba(255,255,255,0.03);
     }
-    #drop-zone:hover,
-    #drop-zone.dragover {
-      border-color: var(--yellow);
-      background: rgba(255,225,53,0.05);
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--yellow); background: rgba(255,225,53,0.05);
     }
-    #drop-zone.dragover {
-      transform: scale(1.01);
-    }
-    .drop-icon {
-      font-size: 2.4rem;
-      margin-bottom: 10px;
-      display: block;
-      transition: transform 0.2s;
-    }
+    #drop-zone.dragover { transform: scale(1.01); }
+    .drop-icon { font-size: 2.4rem; margin-bottom: 10px; display: block; transition: transform 0.2s; }
     #drop-zone:hover .drop-icon { transform: scale(1.15) rotate(-4deg); }
     .drop-title {
-      font-family: 'Bangers', cursive;
-      font-size: 1.4rem;
-      letter-spacing: 2px;
-      color: var(--white);
+      font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 2px; color: var(--white);
     }
     .drop-sub {
-      font-size: 0.68rem;
-      color: rgba(245,240,232,0.4);
-      margin-top: 4px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      font-size: 0.68rem; color: rgba(245,240,232,0.4); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase;
     }
     #file-name {
-      margin-top: 10px;
-      font-size: 0.72rem;
-      color: var(--green);
-      min-height: 18px;
-      letter-spacing: 1px;
-      font-weight: 500;
-      word-break: break-all;
+      margin-top: 10px; font-size: 0.72rem; color: var(--green); min-height: 18px; letter-spacing: 1px; font-weight: 500; word-break: break-all;
     }
-
-    /* ── Output name row ── */
     .output-row {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      margin-top: 20px;
-      border: var(--border);
+      display: flex; align-items: center; gap: 0; margin-top: 20px; border: var(--border);
     }
     .output-row label {
-      padding: 10px 14px;
-      font-size: 0.68rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      background: var(--white);
-      color: var(--black);
-      white-space: nowrap;
-      font-weight: 500;
-      flex-shrink: 0;
+      padding: 10px 14px; font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase;
+      background: var(--white); color: var(--black); white-space: nowrap; font-weight: 500; flex-shrink: 0;
     }
     .output-row input {
-      flex: 1;
-      padding: 10px 12px;
-      background: transparent;
-      border: none;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--white);
-      outline: none;
-      min-width: 0;
+      flex: 1; padding: 10px 12px; background: transparent; border: none;
+      font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--white); outline: none; min-width: 0;
     }
     .output-row input:disabled { opacity: 0.3; cursor: not-allowed; }
     .output-row input::placeholder { color: rgba(245,240,232,0.25); }
     .ext-tag {
-      padding: 10px 14px;
-      font-size: 0.68rem;
-      letter-spacing: 1px;
-      color: var(--yellow);
-      background: rgba(255,225,53,0.08);
-      border-left: var(--border);
-      flex-shrink: 0;
-      font-weight: 500;
+      padding: 10px 14px; font-size: 0.68rem; letter-spacing: 1px; color: var(--yellow);
+      background: rgba(255,225,53,0.08); border-left: var(--border); flex-shrink: 0; font-weight: 500;
     }
-
-    /* ── Convert button ── */
     #convert-btn {
-      display: block;
-      width: 100%;
-      margin-top: 20px;
-      padding: 15px;
-      background: var(--yellow);
-      color: var(--black);
-      border: 2px solid var(--black);
-      font-family: 'Bangers', cursive;
-      font-size: 1.4rem;
-      letter-spacing: 3px;
-      cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.1s;
-      box-shadow: 4px 4px 0 var(--white);
-      position: relative;
+      display: block; width: 100%; margin-top: 20px; padding: 15px;
+      background: var(--yellow); color: var(--black); border: 2px solid var(--black);
+      font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 3px; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s; box-shadow: 4px 4px 0 var(--white);
     }
     #convert-btn:hover:not(:disabled) {
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0 var(--white);
+      transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--white);
     }
     #convert-btn:active:not(:disabled) {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0 var(--white);
+      transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--white);
     }
     #convert-btn:disabled {
-      background: rgba(245,240,232,0.15);
-      color: rgba(245,240,232,0.3);
-      cursor: not-allowed;
-      box-shadow: none;
+      background: rgba(245,240,232,0.15); color: rgba(245,240,232,0.3); cursor: not-allowed; box-shadow: none;
     }
-
-    /* ── Progress bar ── */
     #progress-bar {
-      margin-top: 18px;
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      overflow: hidden;
+      margin-top: 18px; height: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); overflow: hidden;
     }
     #progress-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--yellow), var(--green));
-      transition: width 0.25s ease;
-      box-shadow: 0 0 8px var(--yellow);
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--yellow), var(--green));
+      transition: width 0.25s ease; box-shadow: 0 0 8px var(--yellow);
     }
-
-    /* ── Status ── */
     #status {
-      margin-top: 14px;
-      min-height: 20px;
-      font-size: 0.72rem;
-      letter-spacing: 1px;
-      color: rgba(245,240,232,0.6);
+      margin-top: 14px; min-height: 20px; font-size: 0.72rem; letter-spacing: 1px; color: rgba(245,240,232,0.6);
     }
     #status.success { color: var(--green); }
     #status.error   { color: var(--red); }
-
-    /* ── Action buttons row ── */
     .action-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
+      display: flex; gap: 10px; margin-top: 14px;
     }
     .action-btn {
-      flex: 1;
-      padding: 10px 14px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      border: var(--border);
+      flex: 1; padding: 10px 14px; font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: var(--border);
       transition: transform 0.1s, box-shadow 0.1s;
     }
-    .action-btn:hover {
-      transform: translate(-2px, -2px);
-    }
+    .action-btn:hover { transform: translate(-2px, -2px); }
     #open-folder-btn {
-      background: var(--white);
-      color: var(--black);
-      box-shadow: 3px 3px 0 rgba(255,255,255,0.3);
+      background: var(--white); color: var(--black); box-shadow: 3px 3px 0 rgba(255,255,255,0.3);
     }
     #open-folder-btn:hover { box-shadow: 5px 5px 0 rgba(255,255,255,0.3); }
-
     #support-link {
-      background: transparent;
-      color: var(--green);
-      border-color: var(--green);
-      box-shadow: 3px 3px 0 var(--green);
+      background: transparent; color: var(--green); border-color: var(--green); box-shadow: 3px 3px 0 var(--green);
     }
     #support-link:hover { box-shadow: 5px 5px 0 var(--green); }
-
     .hidden { display: none !important; }
-
-    /* ── Supported formats strip ── */
     .formats-strip {
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex; flex-wrap: wrap; gap: 6px;
     }
     .fmt-tag {
-      padding: 3px 8px;
-      font-size: 0.6rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: rgba(245,240,232,0.55);
+      padding: 3px 8px; font-size: 0.6rem; letter-spacing: 1.5px; text-transform: uppercase;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: rgba(245,240,232,0.55);
     }
     .fmt-tag.native {
-      border-color: rgba(0, 230, 118, 0.4);
-      color: rgba(0, 230, 118, 0.8);
+      border-color: rgba(0, 230, 118, 0.4); color: rgba(0, 230, 118, 0.8);
+    }
+    /* OCR checkbox */
+    .ocr-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.7rem; letter-spacing: 1px;
+    }
+    .ocr-row input { accent-color: var(--yellow); }
+    /* Batch file list */
+    #file-list {
+      margin-top: 10px; list-style: none; text-align: left; max-height: 120px; overflow-y: auto;
+    }
+    #file-list li {
+      font-size: 0.65rem; color: rgba(255,255,255,0.7); padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
     }
   </style>
 </head>
@@ -345,12 +178,10 @@
   <div id="gif-background"></div>
 
   <div class="card">
-    <!-- Header – logo now a full-width banner -->
+    <!-- Header -->
     <div class="header">
       <img src="NewLogo.png" alt="Point2PDF" class="logo">
     </div>
-
-    <!-- Title block below the logo -->
     <div class="title-block">
       <h1>Point2PDF</h1>
       <p>Drop it. Convert it. Done.</p>
@@ -359,13 +190,22 @@
     <!-- Drop zone -->
     <div id="drop-zone">
       <span class="drop-icon">📄</span>
-      <div class="drop-title">Drag &amp; Drop your file here</div>
-      <div class="drop-sub">or click to browse</div>
-      <input type="file" id="file-input" hidden>
+      <div class="drop-title">Drag &amp; Drop files here</div>
+      <div class="drop-sub">or click to browse (multiple allowed)</div>
+      <input type="file" id="file-input" hidden multiple>
     </div>
+
+    <!-- File list (shown when multiple files selected) -->
+    <ul id="file-list"></ul>
     <div id="file-name"></div>
 
-    <!-- Output name -->
+    <!-- OCR toggle (visible only for images) -->
+    <div id="ocr-row" class="ocr-row hidden">
+      <input type="checkbox" id="ocr-checkbox">
+      <label for="ocr-checkbox">Make PDF searchable (OCR) – slower</label>
+    </div>
+
+    <!-- Output name row (disabled for batch) -->
     <div class="output-row">
       <label for="output-name-input">Save as</label>
       <input type="text" id="output-name-input" placeholder="filename" disabled>
@@ -410,43 +250,156 @@
 
   <script type="text/javascript" src="/eel.js"></script>
   <script>
-    // ─── DOM refs ───────────────────────────────────────────────────────────
-    const dropZone       = document.getElementById('drop-zone');
-    const fileInput      = document.getElementById('file-input');
-    const fileNameDisplay= document.getElementById('file-name');
-    const outputNameInput= document.getElementById('output-name-input');
-    const convertBtn     = document.getElementById('convert-btn');
-    const progressBar    = document.getElementById('progress-bar');
-    const progressFill   = document.getElementById('progress-fill');
-    const statusDiv      = document.getElementById('status');
-    const actionRow      = document.getElementById('action-row');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const fileNameDisplay = document.getElementById('file-name');
+    const ocrRow = document.getElementById('ocr-row');
+    const ocrCheckbox = document.getElementById('ocr-checkbox');
+    const outputNameInput = document.getElementById('output-name-input');
+    const convertBtn = document.getElementById('convert-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const statusDiv = document.getElementById('status');
+    const actionRow = document.getElementById('action-row');
+    const openFolderBtn = document.getElementById('open-folder-btn');
 
-    let selectedFile = null;
+    let selectedFiles = [];   // array of File objects
 
-    // ─── Drop zone ──────────────────────────────────────────────────────────
+    // ─── Drop zone & file input ──────────────────────────────────────
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
     });
     fileInput.addEventListener('change', e => {
-      if (e.target.files.length) handleFile(e.target.files[0]);
+      if (e.target.files.length) handleFiles(e.target.files);
     });
 
-    function handleFile(file) {
-      selectedFile = file;
-      fileNameDisplay.textContent = '→ ' + file.name;
-      outputNameInput.value = file.name.replace(/\.[^/.]+$/, "");
-      outputNameInput.disabled = false;
+    function handleFiles(files) {
+      selectedFiles = Array.from(files);
+      updateUI();
+    }
+
+    function updateUI() {
+      fileList.innerHTML = '';
+      fileNameDisplay.textContent = '';
+
+      if (selectedFiles.length === 0) {
+        convertBtn.disabled = true;
+        outputNameInput.disabled = true;
+        ocrRow.classList.add('hidden');
+        return;
+      }
+
+      // Show file list
+      selectedFiles.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = f.name;
+        fileList.appendChild(li);
+      });
+
+      // Enable convert
       convertBtn.disabled = false;
-      setStatus('', '');
-      actionRow.classList.add('hidden');
-      const ext = file.name.split('.').pop().toLowerCase();
+
+      // Output name: if single file, pre-fill stem; if multiple, disable and show placeholder
+      if (selectedFiles.length === 1) {
+        const stem = selectedFiles[0].name.replace(/\.[^/.]+$/, "");
+        outputNameInput.value = stem;
+        outputNameInput.disabled = false;
+      } else {
+        outputNameInput.value = '';
+        outputNameInput.placeholder = 'auto (original names)';
+        outputNameInput.disabled = true;
+      }
+
+      // OCR checkbox visible only if there is at least one image file
+      const hasImage = selectedFiles.some(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        return ['jpg','jpeg','png','bmp','gif'].includes(ext);
+      });
+      if (hasImage) {
+        ocrRow.classList.remove('hidden');
+      } else {
+        ocrRow.classList.add('hidden');
+        ocrCheckbox.checked = false;
+      }
+
+      // Icon for first file (as before)
+      const ext = selectedFiles[0].name.split('.').pop().toLowerCase();
       const icons = { jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🎞️', bmp:'🖼️', txt:'📝', html:'🌐', docx:'📘', xlsx:'📊', csv:'📊', ods:'📊', pdf:'📄', pptx:'📑' };
       dropZone.querySelector('.drop-icon').textContent = icons[ext] || '📄';
+    }
+
+    // ─── Convert (batch or single) ──────────────────────────────────
+    convertBtn.addEventListener('click', async () => {
+      if (selectedFiles.length === 0) return;
+
+      convertBtn.disabled = true;
+      progressBar.classList.remove('hidden');
+      progressFill.style.width = '0%';
+      actionRow.classList.add('hidden');
+
+      const useOcr = ocrCheckbox.checked;
+      const total = selectedFiles.length;
+      let successCount = 0;
+      let failCount = 0;
+
+      setStatus(`0 / ${total} files converted`, '');
+
+      for (let i = 0; i < total; i++) {
+        const file = selectedFiles[i];
+        const outputName = (selectedFiles.length === 1) ?
+                            outputNameInput.value.trim() :
+                            file.name.replace(/\.[^/.]+$/, "");
+
+        // Read file as base64
+        const b64 = await readFileAsBase64(file);
+        try {
+          const result = await eel.convert_file(b64, file.name, outputName, useOcr)();
+          if (result && result.success) {
+            successCount++;
+            // Store last successful path for open folder (optional)
+            if (i === total - 1) {
+              window.lastPdfPath = result.file_path;
+            }
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          failCount++;
+        }
+
+        // Update progress
+        const progress = ((i + 1) / total) * 100;
+        progressFill.style.width = progress + '%';
+        setStatus(`${i + 1} / ${total} files converted (${successCount} ok, ${failCount} failed)`, '');
+      }
+
+      if (successCount > 0) {
+        setStatus(`✓ ${successCount} file(s) converted successfully, ${failCount} failed`, 'success');
+        actionRow.classList.remove('hidden');
+      } else {
+        setStatus(`✗ All ${failCount} files failed`, 'error');
+      }
+
+      convertBtn.disabled = false;
+      setTimeout(() => progressBar.classList.add('hidden'), 1200);
+    });
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const b64 = reader.result.split(',')[1];
+          resolve(b64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
     function setStatus(msg, type) {
@@ -454,59 +407,17 @@
       statusDiv.className = type || '';
     }
 
-    // ─── Convert ─────────────────────────────────────────────────────────────
-    convertBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
-      convertBtn.disabled = true;
-      progressBar.classList.remove('hidden');
-      progressFill.style.width = '0%';
-      setStatus('Converting...', '');
-
-      const reader = new FileReader();
-      reader.onload = async function () {
-        const b64 = reader.result.split(',')[1];
-        try {
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress = Math.min(progress + Math.random() * 18, 88);
-            progressFill.style.width = progress + '%';
-          }, 280);
-
-          const result = await eel.convert_file(b64, selectedFile.name, outputNameInput.value.trim())();
-          clearInterval(interval);
-
-          if (result && result.success) {
-            progressFill.style.width = '100%';
-            setStatus('✓ ' + result.message, 'success');
-            window.lastPdfPath = result.file_path;
-            actionRow.classList.remove('hidden');
-          } else {
-            setStatus('✗ ' + (result ? result.message : 'Unknown error'), 'error');
-            progressFill.style.width = '0%';
-          }
-        } catch (err) {
-          setStatus('✗ ' + err.message, 'error');
-          progressFill.style.width = '0%';
-        } finally {
-          convertBtn.disabled = false;
-          setTimeout(() => progressBar.classList.add('hidden'), 1200);
-        }
-      };
-      reader.readAsDataURL(selectedFile);
-    });
-
     function openFolder() {
       if (window.lastPdfPath) eel.open_file_explorer(window.lastPdfPath);
     }
 
-    // ─── GIF background ──────────────────────────────────────────────────────
+    // ─── GIF background (unchanged) ─────────────────────────────────
     const MAX_GIFS      = 20;
     const SPAWN_INTERVAL= 1500;
     const MIN_SIZE      = 140;
     const MAX_SIZE      = 220;
     const MIN_SPEED     = 0.3;
     const MAX_SPEED     = 1.1;
-
     const bgLayer = document.getElementById('gif-background');
     let gifFiles  = [];
 
@@ -518,7 +429,7 @@
           setInterval(spawnGif, SPAWN_INTERVAL);
           animate();
         }
-      } catch (_) { /* no GIFs — silent */ }
+      } catch (_) {}
     }
 
     function spawnGif() {

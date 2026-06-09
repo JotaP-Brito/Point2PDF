@@ -18,9 +18,6 @@ import pandas as pd
 import pytesseract
 from io import BytesIO
 
-
-
-
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
@@ -36,23 +33,20 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 @eel.expose
 def get_gif_list():
     gif_dir = Path(__file__).parent / "gifs"
-    print(f"[DEBUG] get_gif_list called – gif_dir exists: {gif_dir.exists()}")
     if gif_dir.exists():
         files = [f"gifs/{f.name}" for f in gif_dir.iterdir() if f.suffix.lower() == ".gif"]
-        print(f"[DEBUG] Found {len(files)} GIFs: {files[:5]}...")
         return files
-    print("[DEBUG] gifs folder not found!")
     return []
+
 
 # ------------------------------------------------------------
 # Pure Python converters (no LibreOffice needed)
 # ------------------------------------------------------------
-def convert_locally(input_path, output_dir, desired_stem):
+def convert_locally(input_path, output_dir, desired_stem, ocr=False):
     """
-    Try to convert the file using local Python libraries.
-    Returns:
-        (True, pdf_path)   if successful
-        (False, error_msg) if not supported or failed
+    Convert file using local Python libraries.
+    ocr: If True and file is an image, produce a searchable PDF (OCR).
+    Returns (True, pdf_path) or (False, error_msg).
     """
     ext = Path(input_path).suffix.lower()
     output_pdf = output_dir / f"{desired_stem}.pdf"
@@ -60,9 +54,18 @@ def convert_locally(input_path, output_dir, desired_stem):
     try:
         # ------- Images -------
         if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
-            img = Image.open(input_path).convert('RGB')
-            img.save(output_pdf, 'PDF')
-            return True, str(output_pdf)
+            if ocr:
+                # Use Tesseract to produce a searchable PDF
+                # pytesseract.image_to_pdf_or_hocr returns the raw PDF bytes
+                img = Image.open(input_path)
+                pdf_bytes = pytesseract.image_to_pdf_or_hocr(img, extension='pdf')
+                with open(output_pdf, 'wb') as f:
+                    f.write(pdf_bytes)
+                return True, str(output_pdf)
+            else:
+                img = Image.open(input_path).convert('RGB')
+                img.save(output_pdf, 'PDF')
+                return True, str(output_pdf)
 
         # ------- Plain text -------
         elif ext == '.txt':
@@ -89,7 +92,7 @@ def convert_locally(input_path, output_dir, desired_stem):
             HTML(string=html).write_pdf(output_pdf)
             return True, str(output_pdf)
 
-                # ------- Spreadsheets (xlsx, ods, csv) -------
+        # ------- Spreadsheets (xlsx, ods, csv) -------
         elif ext in ('.xlsx', '.ods', '.csv'):
             if ext == '.csv':
                 df = pd.read_csv(input_path)
@@ -103,33 +106,12 @@ def convert_locally(input_path, output_dir, desired_stem):
             <head>
             <meta charset="utf-8">
             <style>
-            @page {{
-                size: A4 landscape;
-                margin: 1cm;
-            }}
-            body {{
-                font-family: Arial, sans-serif;
-                font-size: 10px;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                word-wrap: break-word;
-            }}
-            th {{
-                background-color: #2e7d32;
-                color: white;
-                padding: 6px;
-                text-align: left;
-                font-weight: bold;
-            }}
-            td {{
-                padding: 4px 6px;
-                border-bottom: 1px solid #ddd;
-            }}
-            tr:nth-child(even) {{
-                background-color: #f9f9f9;
-            }}
+            @page {{ size: A4 landscape; margin: 1cm; }}
+            body {{ font-family: Arial, sans-serif; font-size: 10px; }}
+            table {{ width: 100%; border-collapse: collapse; word-wrap: break-word; }}
+            th {{ background-color: #2e7d32; color: white; padding: 6px; text-align: left; font-weight: bold; }}
+            td {{ padding: 4px 6px; border-bottom: 1px solid #ddd; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
             </style>
             </head>
             <body>
@@ -138,49 +120,64 @@ def convert_locally(input_path, output_dir, desired_stem):
             </html>"""
             HTML(string=html_template).write_pdf(output_pdf)
             return True, str(output_pdf)
-        # ------- Not supported locally -------
+
+        # ------- Not supported -------
         else:
-            return False, f"File type '{ext}' is not supported by the internal converter."
+            return False, f"File type '{ext}' not supported."
 
     except Exception as e:
         return False, f"Local conversion failed: {e}"
 
+
 # ------------------------------------------------------------
-# Eel exposed functions
+# Single file conversion (existing, now with OCR)
 # ------------------------------------------------------------
 @eel.expose
-def convert_file(file_b64, original_name, output_name):
+def convert_file(file_b64, original_name, output_name, ocr=False):
     try:
-        print("🚀 convert_file started")
-        print(f"[DEBUG] Original file name: {original_name}")
-        print(f"[DEBUG] Requested output name: {output_name}")
-
         file_bytes = base64.b64decode(file_b64)
         ext = Path(original_name).suffix or ".tmp"
         tmp_input = UPLOAD_FOLDER / f"{uuid.uuid4().hex}{ext}"
-        print(f"[DEBUG] Saving temp input as: {tmp_input}")
         with open(tmp_input, "wb") as f:
             f.write(file_bytes)
 
         safe_name = sanitize_filename(output_name) or "output"
-        print(f"[DEBUG] Sanitized output name: {safe_name}")
+        success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_name, ocr=ocr)
+        os.remove(tmp_input)
 
-        # ---- Call converter----
-        local_success, local_result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_name)
-
-        if local_success:
-            os.remove(tmp_input)
+        if success:
             return {
                 "success": True,
-                "message": f"PDF created (internal): {Path(local_result).name}",
-                "file_path": local_result
+                "message": f"PDF created: {Path(result).name}",
+                "file_path": result
             }
         else:
-            print("Unfortunately, We don't support this extension")
-
+            return {"success": False, "message": result}
     except Exception as e:
-        print(f"[DEBUG] ❌ Error: {e}")
         return {"success": False, "message": str(e)}
+
+
+# ------------------------------------------------------------
+# Batch conversion (new)
+# ------------------------------------------------------------
+@eel.expose
+def convert_batch(files_data):
+    """
+    files_data: list of {b64, original_name, output_name, ocr (optional)}
+    Returns list of results for each file.
+    """
+    results = []
+    for idx, fdata in enumerate(files_data):
+        b64 = fdata.get("b64", "")
+        orig_name = fdata.get("original_name", f"file_{idx}")
+        out_name = fdata.get("output_name", "")
+        ocr = fdata.get("ocr", False)
+
+        res = convert_file(b64, orig_name, out_name, ocr)
+        res["index"] = idx
+        results.append(res)
+    return results
+
 
 @eel.expose
 def open_file_explorer(path):
@@ -193,9 +190,11 @@ def open_file_explorer(path):
         else:
             subprocess.run(["xdg-open", str(folder)])
 
+
 # ------------------------------------------------------------
 # Start the Eel app
 # ------------------------------------------------------------
 if __name__ == "__main__":
     eel.init(Path(__file__).parent)
-    eel.start("index.html", size=(1920, 1080), port=5004,cmdline_args=['--start-fullscreen'])
+    eel.start("index.html", size=(1920, 1080), port=5004,
+              cmdline_args=['--start-fullscreen'])

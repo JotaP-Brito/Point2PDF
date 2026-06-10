@@ -17,7 +17,13 @@ from fpdf import FPDF
 import pandas as pd
 import pytesseract
 from io import BytesIO
-from pypdf import PdfMerger
+from pypdf import PdfMerger, PdfReader, PdfWriter
+
+# ------------------------------------------------------------
+# Tesseract path (adjust if needed)
+# ------------------------------------------------------------
+# If Tesseract is not in your PATH, uncomment and set the path:
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # ------------------------------------------------------------
 # Helpers
@@ -29,58 +35,6 @@ def sanitize_filename(name):
 # Output folder
 UPLOAD_FOLDER = Path.home() / "PDF_Converter_Output"
 UPLOAD_FOLDER.mkdir(exist_ok=True)
-
-@eel.expose
-def merge_pdfs(file_data_list, output_name):
-    """
-    file_data_list: list of {b64, original_name}
-    Converts each file to PDF locally, merges them, returns the merged PDF path.
-    """
-    temp_pdfs = []
-    try:
-        # Convert each file individually
-        for idx, fdata in enumerate(file_data_list):
-            b64 = fdata.get("b64", "")
-            orig_name = fdata.get("original_name", f"file_{idx}")
-            file_bytes = base64.b64decode(b64)
-            ext = Path(orig_name).suffix or ".tmp"
-            tmp_input = UPLOAD_FOLDER / f"merge_{idx}_{uuid.uuid4().hex}{ext}"
-            with open(tmp_input, "wb") as f:
-                f.write(file_bytes)
-            
-            safe_stem = sanitize_filename(f"temp_{idx}_{uuid.uuid4().hex}")
-            success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_stem)
-            os.remove(tmp_input)
-            
-            if success:
-                temp_pdfs.append(result)
-            else:
-                return {"success": False, "message": f"Failed to convert {orig_name}: {result}"}
-        
-        # Merge all temporary PDFs
-        safe_output = sanitize_filename(output_name) or "merged"
-        merged_path = UPLOAD_FOLDER / f"{safe_output}.pdf"
-        
-        merger = PdfMerger()
-        for pdf_path in temp_pdfs:
-            merger.append(pdf_path)
-        merger.write(str(merged_path))
-        merger.close()
-        
-        # Clean up temporary PDFs
-        for pdf_path in temp_pdfs:
-            try:
-                os.remove(pdf_path)
-            except:
-                pass
-        
-        return {
-            "success": True,
-            "message": f"Merged PDF created: {merged_path.name}",
-            "file_path": str(merged_path)
-        }
-    except Exception as e:
-        return {"success": False, "message": str(e)}
 
 
 @eel.expose
@@ -108,8 +62,6 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
         # ------- Images -------
         if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
             if ocr:
-                # Use Tesseract to produce a searchable PDF
-                # pytesseract.image_to_pdf_or_hocr returns the raw PDF bytes
                 img = Image.open(input_path)
                 pdf_bytes = pytesseract.image_to_pdf_or_hocr(img, extension='pdf')
                 with open(output_pdf, 'wb') as f:
@@ -153,7 +105,7 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
                 df = pd.read_excel(input_path, engine='openpyxl')
             elif ext == '.ods':
                 df = pd.read_excel(input_path, engine='odf')
-            
+
             html_template = f"""<!DOCTYPE html>
             <html>
             <head>
@@ -183,10 +135,10 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
 
 
 # ------------------------------------------------------------
-# Single file conversion (existing, now with OCR)
+# Single file conversion
 # ------------------------------------------------------------
 @eel.expose
-def convert_file(file_b64, original_name, output_name, ocr=False):
+def convert_file(file_b64, original_name, output_name, ocr=False, password=None):
     try:
         file_bytes = base64.b64decode(file_b64)
         ext = Path(original_name).suffix or ".tmp"
@@ -199,9 +151,20 @@ def convert_file(file_b64, original_name, output_name, ocr=False):
         os.remove(tmp_input)
 
         if success:
+            # Apply password protection if requested
+            if password:
+                encrypt_result = encrypt_pdf(result, password)
+                if encrypt_result["success"]:
+                    result = encrypt_result["file_path"]
+                    msg = f"PDF created (encrypted): {Path(result).name}"
+                else:
+                    return {"success": False, "message": encrypt_result["message"]}
+            else:
+                msg = f"PDF created: {Path(result).name}"
+
             return {
                 "success": True,
-                "message": f"PDF created: {Path(result).name}",
+                "message": msg,
                 "file_path": result
             }
         else:
@@ -211,7 +174,7 @@ def convert_file(file_b64, original_name, output_name, ocr=False):
 
 
 # ------------------------------------------------------------
-# Batch conversion (new)
+# Batch conversion
 # ------------------------------------------------------------
 @eel.expose
 def convert_batch(files_data):
@@ -225,13 +188,103 @@ def convert_batch(files_data):
         orig_name = fdata.get("original_name", f"file_{idx}")
         out_name = fdata.get("output_name", "")
         ocr = fdata.get("ocr", False)
+        password = fdata.get("password", None)
 
-        res = convert_file(b64, orig_name, out_name, ocr)
+        res = convert_file(b64, orig_name, out_name, ocr, password)
         res["index"] = idx
         results.append(res)
     return results
 
 
+# ------------------------------------------------------------
+# PDF Merging
+# ------------------------------------------------------------
+@eel.expose
+def merge_pdfs(file_data_list, output_name):
+    """
+    file_data_list: list of {b64, original_name}
+    Converts each file to PDF locally, merges them, returns the merged PDF path.
+    """
+    temp_pdfs = []
+    try:
+        for idx, fdata in enumerate(file_data_list):
+            b64 = fdata.get("b64", "")
+            orig_name = fdata.get("original_name", f"file_{idx}")
+            file_bytes = base64.b64decode(b64)
+            ext = Path(orig_name).suffix or ".tmp"
+            tmp_input = UPLOAD_FOLDER / f"merge_{idx}_{uuid.uuid4().hex}{ext}"
+            with open(tmp_input, "wb") as f:
+                f.write(file_bytes)
+
+            safe_stem = sanitize_filename(f"temp_{idx}_{uuid.uuid4().hex}")
+            success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_stem)
+            os.remove(tmp_input)
+
+            if success:
+                temp_pdfs.append(result)
+            else:
+                # Clean up any already-created temp PDFs
+                for p in temp_pdfs:
+                    try:
+                        os.remove(p)
+                    except:
+                        pass
+                return {"success": False, "message": f"Failed to convert {orig_name}: {result}"}
+
+        safe_output = sanitize_filename(output_name) or "merged"
+        merged_path = UPLOAD_FOLDER / f"{safe_output}.pdf"
+
+        merger = PdfMerger()
+        for pdf_path in temp_pdfs:
+            merger.append(pdf_path)
+        merger.write(str(merged_path))
+        merger.close()
+
+        # Clean up temporary PDFs
+        for pdf_path in temp_pdfs:
+            try:
+                os.remove(pdf_path)
+            except:
+                pass
+
+        return {
+            "success": True,
+            "message": f"Merged PDF created: {merged_path.name}",
+            "file_path": str(merged_path)
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+# ------------------------------------------------------------
+# Password Protection
+# ------------------------------------------------------------
+@eel.expose
+def encrypt_pdf(file_path, password):
+    """Encrypt an existing PDF with a password."""
+    try:
+        reader = PdfReader(file_path)
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        writer.encrypt(password)
+
+        encrypted_path = Path(file_path).with_stem(Path(file_path).stem + "_encrypted")
+        with open(encrypted_path, "wb") as f:
+            writer.write(f)
+
+        return {
+            "success": True,
+            "message": f"Encrypted PDF: {encrypted_path.name}",
+            "file_path": str(encrypted_path)
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+# ------------------------------------------------------------
+# Open folder
+# ------------------------------------------------------------
 @eel.expose
 def open_file_explorer(path):
     folder = Path(path).parent

@@ -17,6 +17,7 @@ from fpdf import FPDF
 import pandas as pd
 import pytesseract
 from io import BytesIO
+from pypdf import PdfMerger
 
 # ------------------------------------------------------------
 # Helpers
@@ -28,6 +29,58 @@ def sanitize_filename(name):
 # Output folder
 UPLOAD_FOLDER = Path.home() / "PDF_Converter_Output"
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+@eel.expose
+def merge_pdfs(file_data_list, output_name):
+    """
+    file_data_list: list of {b64, original_name}
+    Converts each file to PDF locally, merges them, returns the merged PDF path.
+    """
+    temp_pdfs = []
+    try:
+        # Convert each file individually
+        for idx, fdata in enumerate(file_data_list):
+            b64 = fdata.get("b64", "")
+            orig_name = fdata.get("original_name", f"file_{idx}")
+            file_bytes = base64.b64decode(b64)
+            ext = Path(orig_name).suffix or ".tmp"
+            tmp_input = UPLOAD_FOLDER / f"merge_{idx}_{uuid.uuid4().hex}{ext}"
+            with open(tmp_input, "wb") as f:
+                f.write(file_bytes)
+            
+            safe_stem = sanitize_filename(f"temp_{idx}_{uuid.uuid4().hex}")
+            success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_stem)
+            os.remove(tmp_input)
+            
+            if success:
+                temp_pdfs.append(result)
+            else:
+                return {"success": False, "message": f"Failed to convert {orig_name}: {result}"}
+        
+        # Merge all temporary PDFs
+        safe_output = sanitize_filename(output_name) or "merged"
+        merged_path = UPLOAD_FOLDER / f"{safe_output}.pdf"
+        
+        merger = PdfMerger()
+        for pdf_path in temp_pdfs:
+            merger.append(pdf_path)
+        merger.write(str(merged_path))
+        merger.close()
+        
+        # Clean up temporary PDFs
+        for pdf_path in temp_pdfs:
+            try:
+                os.remove(pdf_path)
+            except:
+                pass
+        
+        return {
+            "success": True,
+            "message": f"Merged PDF created: {merged_path.name}",
+            "file_path": str(merged_path)
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @eel.expose

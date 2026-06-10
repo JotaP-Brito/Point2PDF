@@ -296,6 +296,24 @@ def open_file_explorer(path):
         else:
             subprocess.run(["xdg-open", str(folder)])
 
+@eel.expose
+def set_metadata(file_path, title="", author="", subject="", keywords=""):
+    reader = PdfReader(file_path)
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    writer.add_metadata({
+        "/Title": title,
+        "/Author": author,
+        "/Subject": subject,
+        "/Keywords": keywords
+    })
+    meta_path = Path(file_path).with_stem(Path(file_path).stem + "_meta")
+    with open(meta_path, "wb") as f:
+        writer.write(f)
+    return {"success": True, "file_path": str(meta_path)}
+
+
 
 # ------------------------------------------------------------
 # Start the Eel app

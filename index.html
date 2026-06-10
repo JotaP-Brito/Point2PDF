@@ -1,22 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Point2PDF</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
   <style>
     /* same brutalist styles as before, unchanged */
     :root {
-      --black:   #0d0d0d;
-      --white:   #f5f0e8;
-      --yellow:  #ffe135;
-      --green:   #00e676;
-      --red:     #ff3d57;
+      --black: #0d0d0d;
+      --white: #f5f0e8;
+      --yellow: #ffe135;
+      --green: #00e676;
+      --red: #ff3d57;
       --card-bg: rgba(15, 15, 15, 0.82);
-      --border:  2px solid var(--white);
+      --border: 2px solid var(--white);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       min-height: 100vh;
       background: var(--black);
@@ -28,151 +36,374 @@
       padding: 24px;
       overflow-x: hidden;
     }
+
     #gif-background {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
     }
+
     #gif-background img {
-      position: absolute; pointer-events: none; image-rendering: pixelated;
+      position: absolute;
+      pointer-events: none;
+      image-rendering: pixelated;
     }
+
     body::after {
       content: '';
-      position: fixed; inset: 0; z-index: 2; pointer-events: none;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.07) 2px, rgba(0, 0, 0, 0.07) 4px);
     }
+
     .card {
-      position: relative; z-index: 3; width: 100%; max-width: 720px;
-      background: var(--card-bg); border: var(--border);
-      backdrop-filter: blur(12px); padding: 36px 36px 32px;
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      max-width: 720px;
+      background: var(--card-bg);
+      border: var(--border);
+      backdrop-filter: blur(12px);
+      padding: 36px 36px 32px;
       box-shadow: 6px 6px 0px var(--yellow);
-      animation: slideIn 0.4s cubic-bezier(.22,1,.36,1) both;
+      animation: slideIn 0.4s cubic-bezier(.22, 1, .36, 1) both;
     }
+
     @keyframes slideIn {
-      from { opacity: 0; transform: translateY(28px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(28px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .header {
-      display: flex; justify-content: center; align-items: center; margin-bottom: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 12px;
     }
+
     .logo {
-      width: 420px; max-width: 100%; height: auto; display: block; object-fit: contain;
-      filter: drop-shadow(5px 5px 0 var(--yellow)) drop-shadow(0 0 18px rgba(255,225,53,0.25));
+      width: 420px;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(5px 5px 0 var(--yellow)) drop-shadow(0 0 18px rgba(255, 225, 53, 0.25));
       transition: transform 0.25s ease;
     }
-    .logo:hover { transform: scale(1.03); }
-    .title-block { text-align: center; margin-bottom: 28px; }
+
+    .logo:hover {
+      transform: scale(1.03);
+    }
+
+    .title-block {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
     .title-block h1 {
-      font-family: 'Bangers', cursive; font-size: 3.2rem; letter-spacing: 4px; line-height: 1;
-      color: var(--yellow); text-shadow: 4px 4px 0 rgba(0,0,0,0.6), 0 0 18px rgba(255,225,53,0.15);
+      font-family: 'Bangers', cursive;
+      font-size: 3.2rem;
+      letter-spacing: 4px;
+      line-height: 1;
+      color: var(--yellow);
+      text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 225, 53, 0.15);
     }
+
     .title-block p {
-      margin-top: 6px; font-size: 0.75rem; color: rgba(245,240,232,0.7); letter-spacing: 3px; text-transform: uppercase;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: rgba(245, 240, 232, 0.7);
+      letter-spacing: 3px;
+      text-transform: uppercase;
     }
+
     #drop-zone {
-      border: 2px dashed rgba(245,240,232,0.3); padding: 36px 20px; text-align: center; cursor: pointer;
-      transition: border-color 0.2s, background 0.2s; background: rgba(255,255,255,0.03);
+      border: 2px dashed rgba(245, 240, 232, 0.3);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: rgba(255, 255, 255, 0.03);
     }
-    #drop-zone:hover, #drop-zone.dragover {
-      border-color: var(--yellow); background: rgba(255,225,53,0.05);
+
+    #drop-zone:hover,
+    #drop-zone.dragover {
+      border-color: var(--yellow);
+      background: rgba(255, 225, 53, 0.05);
     }
-    #drop-zone.dragover { transform: scale(1.01); }
-    .drop-icon { font-size: 2.4rem; margin-bottom: 10px; display: block; transition: transform 0.2s; }
-    #drop-zone:hover .drop-icon { transform: scale(1.15) rotate(-4deg); }
+
+    #drop-zone.dragover {
+      transform: scale(1.01);
+    }
+
+    .drop-icon {
+      font-size: 2.4rem;
+      margin-bottom: 10px;
+      display: block;
+      transition: transform 0.2s;
+    }
+
+    #drop-zone:hover .drop-icon {
+      transform: scale(1.15) rotate(-4deg);
+    }
+
     .drop-title {
-      font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 2px; color: var(--white);
+      font-family: 'Bangers', cursive;
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      color: var(--white);
     }
+
     .drop-sub {
-      font-size: 0.68rem; color: rgba(245,240,232,0.4); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase;
+      font-size: 0.68rem;
+      color: rgba(245, 240, 232, 0.4);
+      margin-top: 4px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
+
     #file-name {
-      margin-top: 10px; font-size: 0.72rem; color: var(--green); min-height: 18px; letter-spacing: 1px; font-weight: 500; word-break: break-all;
+      margin-top: 10px;
+      font-size: 0.72rem;
+      color: var(--green);
+      min-height: 18px;
+      letter-spacing: 1px;
+      font-weight: 500;
+      word-break: break-all;
     }
+
     .output-row {
-      display: flex; align-items: center; gap: 0; margin-top: 20px; border: var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-top: 20px;
+      border: var(--border);
     }
+
     .output-row label {
-      padding: 10px 14px; font-size: 0.68rem; letter-spacing: 1.5px; text-transform: uppercase;
-      background: var(--white); color: var(--black); white-space: nowrap; font-weight: 500; flex-shrink: 0;
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: var(--white);
+      color: var(--black);
+      white-space: nowrap;
+      font-weight: 500;
+      flex-shrink: 0;
     }
+
     .output-row input {
-      flex: 1; padding: 10px 12px; background: transparent; border: none;
-      font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--white); outline: none; min-width: 0;
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--white);
+      outline: none;
+      min-width: 0;
     }
-    .output-row input:disabled { opacity: 0.3; cursor: not-allowed; }
-    .output-row input::placeholder { color: rgba(245,240,232,0.25); }
+
+    .output-row input:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .output-row input::placeholder {
+      color: rgba(245, 240, 232, 0.25);
+    }
+
     .ext-tag {
-      padding: 10px 14px; font-size: 0.68rem; letter-spacing: 1px; color: var(--yellow);
-      background: rgba(255,225,53,0.08); border-left: var(--border); flex-shrink: 0; font-weight: 500;
+      padding: 10px 14px;
+      font-size: 0.68rem;
+      letter-spacing: 1px;
+      color: var(--yellow);
+      background: rgba(255, 225, 53, 0.08);
+      border-left: var(--border);
+      flex-shrink: 0;
+      font-weight: 500;
     }
+
     #convert-btn {
-      display: block; width: 100%; margin-top: 20px; padding: 15px;
-      background: var(--yellow); color: var(--black); border: 2px solid var(--black);
-      font-family: 'Bangers', cursive; font-size: 1.4rem; letter-spacing: 3px; cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.1s; box-shadow: 4px 4px 0 var(--white);
+      display: block;
+      width: 100%;
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 2px solid var(--black);
+      font-family: 'Bangers', cursive;
+      font-size: 1.4rem;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 4px 4px 0 var(--white);
     }
+
     #convert-btn:hover:not(:disabled) {
-      transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--white);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--white);
     }
+
     #convert-btn:active:not(:disabled) {
-      transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--white);
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 var(--white);
     }
+
     #convert-btn:disabled {
-      background: rgba(245,240,232,0.15); color: rgba(245,240,232,0.3); cursor: not-allowed; box-shadow: none;
+      background: rgba(245, 240, 232, 0.15);
+      color: rgba(245, 240, 232, 0.3);
+      cursor: not-allowed;
+      box-shadow: none;
     }
+
     #progress-bar {
-      margin-top: 18px; height: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); overflow: hidden;
+      margin-top: 18px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
     }
+
     #progress-fill {
-      height: 100%; width: 0%; background: linear-gradient(90deg, var(--yellow), var(--green));
-      transition: width 0.25s ease; box-shadow: 0 0 8px var(--yellow);
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--yellow), var(--green));
+      transition: width 0.25s ease;
+      box-shadow: 0 0 8px var(--yellow);
     }
+
     #status {
-      margin-top: 14px; min-height: 20px; font-size: 0.72rem; letter-spacing: 1px; color: rgba(245,240,232,0.6);
+      margin-top: 14px;
+      min-height: 20px;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      color: rgba(245, 240, 232, 0.6);
     }
-    #status.success { color: var(--green); }
-    #status.error   { color: var(--red); }
+
+    #status.success {
+      color: var(--green);
+    }
+
+    #status.error {
+      color: var(--red);
+    }
+
     .action-row {
-      display: flex; gap: 10px; margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
     }
+
     .action-btn {
-      flex: 1; padding: 10px 14px; font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500;
-      letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: var(--border);
+      flex: 1;
+      padding: 10px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: var(--border);
       transition: transform 0.1s, box-shadow 0.1s;
     }
-    .action-btn:hover { transform: translate(-2px, -2px); }
+
+    .action-btn:hover {
+      transform: translate(-2px, -2px);
+    }
+
     #open-folder-btn {
-      background: var(--white); color: var(--black); box-shadow: 3px 3px 0 rgba(255,255,255,0.3);
+      background: var(--white);
+      color: var(--black);
+      box-shadow: 3px 3px 0 rgba(255, 255, 255, 0.3);
     }
-    #open-folder-btn:hover { box-shadow: 5px 5px 0 rgba(255,255,255,0.3); }
+
+    #open-folder-btn:hover {
+      box-shadow: 5px 5px 0 rgba(255, 255, 255, 0.3);
+    }
+
     #support-link {
-      background: transparent; color: var(--green); border-color: var(--green); box-shadow: 3px 3px 0 var(--green);
+      background: transparent;
+      color: var(--green);
+      border-color: var(--green);
+      box-shadow: 3px 3px 0 var(--green);
     }
-    #support-link:hover { box-shadow: 5px 5px 0 var(--green); }
-    .hidden { display: none !important; }
+
+    #support-link:hover {
+      box-shadow: 5px 5px 0 var(--green);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
     .formats-strip {
-      margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);
-      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
+
     .fmt-tag {
-      padding: 3px 8px; font-size: 0.6rem; letter-spacing: 1.5px; text-transform: uppercase;
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: rgba(245,240,232,0.55);
+      padding: 3px 8px;
+      font-size: 0.6rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(245, 240, 232, 0.55);
     }
+
     .fmt-tag.native {
-      border-color: rgba(0, 230, 118, 0.4); color: rgba(0, 230, 118, 0.8);
+      border-color: rgba(0, 230, 118, 0.4);
+      color: rgba(0, 230, 118, 0.8);
     }
+
     /* OCR checkbox */
     .ocr-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.7rem; letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.7rem;
+      letter-spacing: 1px;
     }
-    .ocr-row input { accent-color: var(--yellow); }
+
+    .ocr-row input {
+      accent-color: var(--yellow);
+    }
+
     /* Batch file list */
     #file-list {
-      margin-top: 10px; list-style: none; text-align: left; max-height: 120px; overflow-y: auto;
+      margin-top: 10px;
+      list-style: none;
+      text-align: left;
+      max-height: 120px;
+      overflow-y: auto;
     }
+
     #file-list li {
-      font-size: 0.65rem; color: rgba(255,255,255,0.7); padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.65rem;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
+
 <body>
 
   <div id="gif-background"></div>
@@ -185,6 +416,11 @@
     <div class="title-block">
       <h1>Point2PDF</h1>
       <p>Drop it. Convert it. Done.</p>
+    </div>
+
+    <div id="merge-row" class="ocr-row hidden">
+      <input type="checkbox" id="merge-checkbox">
+      <label for="merge-checkbox">Merge all files into a single PDF</label>
     </div>
 
     <!-- Drop zone -->
@@ -226,7 +462,8 @@
     <!-- Action buttons -->
     <div class="action-row hidden" id="action-row">
       <button class="action-btn" id="open-folder-btn" onclick="openFolder()">📂 Open Folder</button>
-      <button class="action-btn" id="support-link" onclick="window.open('https://github.com/JotaP-Brito/Point2PDF','_blank')">★ Star on GitHub</button>
+      <button class="action-btn" id="support-link"
+        onclick="window.open('https://github.com/JotaP-Brito/Point2PDF','_blank')">★ Star on GitHub</button>
     </div>
 
     <!-- Format tags -->
@@ -319,7 +556,7 @@
       // OCR checkbox visible only if there is at least one image file
       const hasImage = selectedFiles.some(f => {
         const ext = f.name.split('.').pop().toLowerCase();
-        return ['jpg','jpeg','png','bmp','gif'].includes(ext);
+        return ['jpg', 'jpeg', 'png', 'bmp', 'gif'].includes(ext);
       });
       if (hasImage) {
         ocrRow.classList.remove('hidden');
@@ -330,7 +567,7 @@
 
       // Icon for first file (as before)
       const ext = selectedFiles[0].name.split('.').pop().toLowerCase();
-      const icons = { jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🎞️', bmp:'🖼️', txt:'📝', html:'🌐', docx:'📘', xlsx:'📊', csv:'📊', ods:'📊', pdf:'📄', pptx:'📑' };
+      const icons = { jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🎞️', bmp: '🖼️', txt: '📝', html: '🌐', docx: '📘', xlsx: '📊', csv: '📊', ods: '📊', pdf: '📄', pptx: '📑' };
       dropZone.querySelector('.drop-icon').textContent = icons[ext] || '📄';
     }
 
@@ -353,8 +590,8 @@
       for (let i = 0; i < total; i++) {
         const file = selectedFiles[i];
         const outputName = (selectedFiles.length === 1) ?
-                            outputNameInput.value.trim() :
-                            file.name.replace(/\.[^/.]+$/, "");
+          outputNameInput.value.trim() :
+          file.name.replace(/\.[^/.]+$/, "");
 
         // Read file as base64
         const b64 = await readFileAsBase64(file);
@@ -412,14 +649,14 @@
     }
 
     // ─── GIF background (unchanged) ─────────────────────────────────
-    const MAX_GIFS      = 20;
-    const SPAWN_INTERVAL= 1500;
-    const MIN_SIZE      = 140;
-    const MAX_SIZE      = 220;
-    const MIN_SPEED     = 0.3;
-    const MAX_SPEED     = 1.1;
+    const MAX_GIFS = 20;
+    const SPAWN_INTERVAL = 1500;
+    const MIN_SIZE = 140;
+    const MAX_SIZE = 220;
+    const MIN_SPEED = 0.3;
+    const MAX_SPEED = 1.1;
     const bgLayer = document.getElementById('gif-background');
-    let gifFiles  = [];
+    let gifFiles = [];
 
     async function loadGifList() {
       try {
@@ -429,7 +666,7 @@
           setInterval(spawnGif, SPAWN_INTERVAL);
           animate();
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     function spawnGif() {
@@ -437,11 +674,11 @@
       const img = document.createElement('img');
       img.src = gifFiles[Math.floor(Math.random() * gifFiles.length)];
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
-      img.style.width  = size + 'px';
+      img.style.width = size + 'px';
       img.style.height = size + 'px';
-      img.style.left   = (Math.random() * window.innerWidth)  + 'px';
-      img.style.top    = (Math.random() * window.innerHeight) + 'px';
-      img.style.opacity= (0.55 + Math.random() * 0.4).toString();
+      img.style.left = (Math.random() * window.innerWidth) + 'px';
+      img.style.top = (Math.random() * window.innerHeight) + 'px';
+      img.style.opacity = (0.55 + Math.random() * 0.4).toString();
       img._vx = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
       img._vy = (Math.random() - 0.5) * 2 * (MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED));
       bgLayer.appendChild(img);
@@ -453,14 +690,14 @@
       const W = window.innerWidth, H = window.innerHeight;
       imgs.forEach(img => {
         let x = parseFloat(img.style.left) + img._vx;
-        let y = parseFloat(img.style.top)  + img._vy;
+        let y = parseFloat(img.style.top) + img._vy;
         const w = parseFloat(img.style.width);
-        if (x > W)  x = -w;
+        if (x > W) x = -w;
         if (x < -w) x = W;
-        if (y > H)  y = -parseFloat(img.style.height);
+        if (y > H) y = -parseFloat(img.style.height);
         if (y < -parseFloat(img.style.height)) y = H;
         img.style.left = x + 'px';
-        img.style.top  = y + 'px';
+        img.style.top = y + 'px';
       });
       requestAnimationFrame(animate);
     }
@@ -468,4 +705,5 @@
     window.addEventListener('load', loadGifList);
   </script>
 </body>
+
 </html>

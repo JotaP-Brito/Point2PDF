@@ -108,3 +108,12 @@ function openFolder() {
     }
 }
 
+// in updateUI(), after the hasImage check:
+const mergeRow = document.getElementById('merge-row');
+if (selectedFiles.length > 1) {
+    mergeRow.classList.remove('hidden');
+} else {
+    mergeRow.classList.add('hidden');
+    document.getElementById('merge-checkbox').checked = false;
+}
+

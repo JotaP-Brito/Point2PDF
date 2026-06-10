@@ -313,6 +313,9 @@ def set_metadata(file_path, title="", author="", subject="", keywords=""):
         writer.write(f)
     return {"success": True, "file_path": str(meta_path)}
 
+# ADDING Password -- Meta data -- Encryption -- file path ALTTT --
+# Trying to apply
+
 
 
 # ------------------------------------------------------------

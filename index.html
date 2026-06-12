@@ -386,6 +386,10 @@
       accent-color: var(--yellow);
     }
 
+    #saveas{
+      background-color: rgb(147, 0, 147);
+    }
+
     /* Batch file list */
     #file-list {
       margin-top: 10px;
@@ -443,7 +447,7 @@
 
     <!-- Output name row (disabled for batch) -->
     <div class="output-row">
-      <label for="output-name-input">Save as</label>
+      <label id="saveas" for="output-name-input">Save as</label>
       <input type="text" id="output-name-input" placeholder="filename" disabled>
       <span class="ext-tag">.PDF</span>
     </div>

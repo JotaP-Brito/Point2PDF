@@ -10,14 +10,13 @@ import uuid
 import base64
 import eel
 from PIL import Image
-import img2pdf
 import mammoth
 from weasyprint import HTML
 from fpdf import FPDF
 import pandas as pd
 import pytesseract
 from io import BytesIO
-from pypdf import PdfMerger, PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter   # PdfMerger removed (pypdf ≥6)
 
 # ------------------------------------------------------------
 # Tesseract path (adjust if needed)
@@ -135,6 +134,32 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
 
 
 # ------------------------------------------------------------
+# Password Protection (must be defined before convert_file)
+# ------------------------------------------------------------
+@eel.expose
+def encrypt_pdf(file_path, password):
+    """Encrypt an existing PDF with a password."""
+    try:
+        reader = PdfReader(file_path)
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        writer.encrypt(password)
+
+        encrypted_path = Path(file_path).with_stem(Path(file_path).stem + "_encrypted")
+        with open(encrypted_path, "wb") as f:
+            writer.write(f)
+
+        return {
+            "success": True,
+            "message": f"Encrypted PDF: {encrypted_path.name}",
+            "file_path": str(encrypted_path)
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+# ------------------------------------------------------------
 # Single file conversion
 # ------------------------------------------------------------
 @eel.expose
@@ -151,7 +176,6 @@ def convert_file(file_b64, original_name, output_name, ocr=False, password=None)
         os.remove(tmp_input)
 
         if success:
-            # Apply password protection if requested
             if password:
                 encrypt_result = encrypt_pdf(result, password)
                 if encrypt_result["success"]:
@@ -179,7 +203,7 @@ def convert_file(file_b64, original_name, output_name, ocr=False, password=None)
 @eel.expose
 def convert_batch(files_data):
     """
-    files_data: list of {b64, original_name, output_name, ocr (optional)}
+    files_data: list of {b64, original_name, output_name, ocr (optional), password (optional)}
     Returns list of results for each file.
     """
     results = []
@@ -197,7 +221,7 @@ def convert_batch(files_data):
 
 
 # ------------------------------------------------------------
-# PDF Merging
+# PDF Merging (using PdfWriter for pypdf ≥6)
 # ------------------------------------------------------------
 @eel.expose
 def merge_pdfs(file_data_list, output_name):
@@ -223,7 +247,6 @@ def merge_pdfs(file_data_list, output_name):
             if success:
                 temp_pdfs.append(result)
             else:
-                # Clean up any already-created temp PDFs
                 for p in temp_pdfs:
                     try:
                         os.remove(p)
@@ -234,13 +257,14 @@ def merge_pdfs(file_data_list, output_name):
         safe_output = sanitize_filename(output_name) or "merged"
         merged_path = UPLOAD_FOLDER / f"{safe_output}.pdf"
 
-        merger = PdfMerger()
+        writer = PdfWriter()
         for pdf_path in temp_pdfs:
-            merger.append(pdf_path)
-        merger.write(str(merged_path))
-        merger.close()
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                writer.add_page(page)
+        with open(merged_path, "wb") as f:
+            writer.write(f)
 
-        # Clean up temporary PDFs
         for pdf_path in temp_pdfs:
             try:
                 os.remove(pdf_path)
@@ -257,27 +281,25 @@ def merge_pdfs(file_data_list, output_name):
 
 
 # ------------------------------------------------------------
-# Password Protection
+# Metadata Editing
 # ------------------------------------------------------------
 @eel.expose
-def encrypt_pdf(file_path, password):
-    """Encrypt an existing PDF with a password."""
+def set_metadata(file_path, title="", author="", subject="", keywords=""):
     try:
         reader = PdfReader(file_path)
         writer = PdfWriter()
         for page in reader.pages:
             writer.add_page(page)
-        writer.encrypt(password)
-
-        encrypted_path = Path(file_path).with_stem(Path(file_path).stem + "_encrypted")
-        with open(encrypted_path, "wb") as f:
+        writer.add_metadata({
+            "/Title": title,
+            "/Author": author,
+            "/Subject": subject,
+            "/Keywords": keywords
+        })
+        meta_path = Path(file_path).with_stem(Path(file_path).stem + "_meta")
+        with open(meta_path, "wb") as f:
             writer.write(f)
-
-        return {
-            "success": True,
-            "message": f"Encrypted PDF: {encrypted_path.name}",
-            "file_path": str(encrypted_path)
-        }
+        return {"success": True, "file_path": str(meta_path)}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -295,27 +317,6 @@ def open_file_explorer(path):
             subprocess.run(["open", str(folder)])
         else:
             subprocess.run(["xdg-open", str(folder)])
-
-@eel.expose
-def set_metadata(file_path, title="", author="", subject="", keywords=""):
-    reader = PdfReader(file_path)
-    writer = PdfWriter()
-    for page in reader.pages:
-        writer.add_page(page)
-    writer.add_metadata({
-        "/Title": title,
-        "/Author": author,
-        "/Subject": subject,
-        "/Keywords": keywords
-    })
-    meta_path = Path(file_path).with_stem(Path(file_path).stem + "_meta")
-    with open(meta_path, "wb") as f:
-        writer.write(f)
-    return {"success": True, "file_path": str(meta_path)}
-
-# ADDING Password -- Meta data -- Encryption -- file path ALTTT --
-# Trying to apply
-
 
 
 # ------------------------------------------------------------

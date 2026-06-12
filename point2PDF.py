@@ -16,22 +16,31 @@ from fpdf import FPDF
 import pandas as pd
 import pytesseract
 from io import BytesIO
-from pypdf import PdfReader, PdfWriter   # PdfMerger removed (pypdf ≥6)
+from pypdf import PdfReader, PdfWriter
+
+# ----- Silence Fontconfig warnings on Windows (WeasyPrint) -----
+if platform.system() == "Windows":
+    possible_paths = [
+        r"C:\msys64\mingw64\etc\fonts",
+        r"C:\Program Files\GTK3-Runtime Win64\etc\fonts",
+        r"C:\Program Files (x86)\GTK3-Runtime Win32\etc\fonts",
+    ]
+    for path in possible_paths:
+        if os.path.isdir(path):
+            os.environ['FONTCONFIG_PATH'] = path
+            break
 
 # ------------------------------------------------------------
 # Tesseract path (adjust if needed)
 # ------------------------------------------------------------
-# If Tesseract is not in your PATH, uncomment and set the path:
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
 def sanitize_filename(name):
-    """Remove invalid characters from a filename."""
     return re.sub(r'[\\/*?:"<>|]', "", name).strip()
 
-# Output folder
 UPLOAD_FOLDER = Path.home() / "PDF_Converter_Output"
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 
@@ -49,16 +58,10 @@ def get_gif_list():
 # Pure Python converters (no LibreOffice needed)
 # ------------------------------------------------------------
 def convert_locally(input_path, output_dir, desired_stem, ocr=False):
-    """
-    Convert file using local Python libraries.
-    ocr: If True and file is an image, produce a searchable PDF (OCR).
-    Returns (True, pdf_path) or (False, error_msg).
-    """
     ext = Path(input_path).suffix.lower()
     output_pdf = output_dir / f"{desired_stem}.pdf"
 
     try:
-        # ------- Images -------
         if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
             if ocr:
                 img = Image.open(input_path)
@@ -71,7 +74,6 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
                 img.save(output_pdf, 'PDF')
                 return True, str(output_pdf)
 
-        # ------- Plain text -------
         elif ext == '.txt':
             pdf = FPDF()
             pdf.add_page()
@@ -83,12 +85,10 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
             pdf.output(str(output_pdf))
             return True, str(output_pdf)
 
-        # ------- HTML -------
         elif ext == '.html':
             HTML(filename=input_path).write_pdf(output_pdf)
             return True, str(output_pdf)
 
-        # ------- DOCX → HTML → PDF -------
         elif ext == '.docx':
             with open(input_path, "rb") as f:
                 result = mammoth.convert_to_html(f)
@@ -96,7 +96,6 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
             HTML(string=html).write_pdf(output_pdf)
             return True, str(output_pdf)
 
-        # ------- Spreadsheets (xlsx, ods, csv) -------
         elif ext in ('.xlsx', '.ods', '.csv'):
             if ext == '.csv':
                 df = pd.read_csv(input_path)
@@ -125,7 +124,6 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
             HTML(string=html_template).write_pdf(output_pdf)
             return True, str(output_pdf)
 
-        # ------- Not supported -------
         else:
             return False, f"File type '{ext}' not supported."
 
@@ -134,11 +132,10 @@ def convert_locally(input_path, output_dir, desired_stem, ocr=False):
 
 
 # ------------------------------------------------------------
-# Password Protection (must be defined before convert_file)
+# Password Protection
 # ------------------------------------------------------------
 @eel.expose
 def encrypt_pdf(file_path, password):
-    """Encrypt an existing PDF with a password."""
     try:
         reader = PdfReader(file_path)
         writer = PdfWriter()
@@ -202,10 +199,6 @@ def convert_file(file_b64, original_name, output_name, ocr=False, password=None)
 # ------------------------------------------------------------
 @eel.expose
 def convert_batch(files_data):
-    """
-    files_data: list of {b64, original_name, output_name, ocr (optional), password (optional)}
-    Returns list of results for each file.
-    """
     results = []
     for idx, fdata in enumerate(files_data):
         b64 = fdata.get("b64", "")
@@ -221,14 +214,10 @@ def convert_batch(files_data):
 
 
 # ------------------------------------------------------------
-# PDF Merging (using PdfWriter for pypdf ≥6)
+# PDF Merging (pypdf ≥6)
 # ------------------------------------------------------------
 @eel.expose
 def merge_pdfs(file_data_list, output_name):
-    """
-    file_data_list: list of {b64, original_name}
-    Converts each file to PDF locally, merges them, returns the merged PDF path.
-    """
     temp_pdfs = []
     try:
         for idx, fdata in enumerate(file_data_list):
@@ -248,10 +237,8 @@ def merge_pdfs(file_data_list, output_name):
                 temp_pdfs.append(result)
             else:
                 for p in temp_pdfs:
-                    try:
-                        os.remove(p)
-                    except:
-                        pass
+                    try: os.remove(p)
+                    except: pass
                 return {"success": False, "message": f"Failed to convert {orig_name}: {result}"}
 
         safe_output = sanitize_filename(output_name) or "merged"
@@ -265,11 +252,9 @@ def merge_pdfs(file_data_list, output_name):
         with open(merged_path, "wb") as f:
             writer.write(f)
 
-        for pdf_path in temp_pdfs:
-            try:
-                os.remove(pdf_path)
-            except:
-                pass
+        for p in temp_pdfs:
+            try: os.remove(p)
+            except: pass
 
         return {
             "success": True,

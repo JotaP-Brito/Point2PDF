@@ -433,7 +433,7 @@
       <span class="drop-icon">📄</span>
       <div class="drop-title">Drag &amp; Drop files here</div>
       <div class="drop-sub">or click to browse (multiple allowed)</div>
-      <input type="file" id="file-input" hidden multiple>
+      <input type="file" id="file-input" hidden multiple accept=".pdf,.jpg,.jpeg,.png,.bmp,.gif,.txt,.html,.docx,.xlsx,.csv,.ods">
     </div>
 
     <!-- File list (shown when multiple files selected) -->
@@ -505,6 +505,9 @@
     const statusDiv = document.getElementById('status');
     const actionRow = document.getElementById('action-row');
     const openFolderBtn = document.getElementById('open-folder-btn');
+    const mergeRow = document.getElementById('merge-row');
+    const mergeCheckbox = document.getElementById('merge-checkbox');
+    const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 
     let selectedFiles = [];   // array of File objects
 
@@ -520,9 +523,19 @@
     fileInput.addEventListener('change', e => {
       if (e.target.files.length) handleFiles(e.target.files);
     });
+    mergeCheckbox.addEventListener('change', updateUI);
 
     function handleFiles(files) {
-      selectedFiles = Array.from(files);
+      const pickedFiles = Array.from(files);
+      const oversizedFile = pickedFiles.find(file => file.size > MAX_FILE_SIZE_BYTES);
+      if (oversizedFile) {
+        selectedFiles = [];
+        setStatus(`${oversizedFile.name} is larger than the 100 MB limit.`, 'error');
+        fileInput.value = '';
+        updateUI();
+        return;
+      }
+      selectedFiles = pickedFiles;
       updateUI();
     }
 
@@ -534,6 +547,8 @@
         convertBtn.disabled = true;
         outputNameInput.disabled = true;
         ocrRow.classList.add('hidden');
+        mergeRow.classList.add('hidden');
+        mergeCheckbox.checked = false;
         return;
       }
 
@@ -547,15 +562,23 @@
       // Enable convert
       convertBtn.disabled = false;
 
-      // Output name: if single file, pre-fill stem; if multiple, disable and show placeholder
+      // A custom name is available for a single conversion or a merged document.
       if (selectedFiles.length === 1) {
         const stem = selectedFiles[0].name.replace(/\.[^/.]+$/, "");
         outputNameInput.value = stem;
         outputNameInput.disabled = false;
+        mergeRow.classList.add('hidden');
+        mergeCheckbox.checked = false;
+      } else if (mergeCheckbox.checked) {
+        outputNameInput.value = outputNameInput.value || 'merged';
+        outputNameInput.placeholder = 'merged';
+        outputNameInput.disabled = false;
+        mergeRow.classList.remove('hidden');
       } else {
         outputNameInput.value = '';
         outputNameInput.placeholder = 'auto (original names)';
         outputNameInput.disabled = true;
+        mergeRow.classList.remove('hidden');
       }
 
       // OCR checkbox visible only if there is at least one image file
@@ -576,7 +599,7 @@
       dropZone.querySelector('.drop-icon').textContent = icons[ext] || '📄';
     }
 
-    // ─── Convert (batch or single) ──────────────────────────────────
+    // ─── Convert (batch, single, or merge) ───────────────────────────
     convertBtn.addEventListener('click', async () => {
       if (selectedFiles.length === 0) return;
 
@@ -590,46 +613,63 @@
       let successCount = 0;
       let failCount = 0;
 
-      setStatus(`0 / ${total} files converted`, '');
-
-      for (let i = 0; i < total; i++) {
-        const file = selectedFiles[i];
-        const outputName = (selectedFiles.length === 1) ?
-          outputNameInput.value.trim() :
-          file.name.replace(/\.[^/.]+$/, "");
-
-        // Read file as base64
-        const b64 = await readFileAsBase64(file);
-        try {
-          const result = await eel.convert_file(b64, file.name, outputName, useOcr)();
-          if (result && result.success) {
-            successCount++;
-            // Store last successful path for open folder (optional)
-            if (i === total - 1) {
-              window.lastPdfPath = result.file_path;
-            }
-          } else {
-            failCount++;
+      try {
+        if (total > 1 && mergeCheckbox.checked) {
+          setStatus(`Preparing ${total} files to merge…`, '');
+          const filesData = [];
+          for (let index = 0; index < total; index++) {
+            const file = selectedFiles[index];
+            filesData.push({
+              b64: await readFileAsBase64(file),
+              original_name: file.name,
+              ocr: useOcr,
+            });
+            progressFill.style.width = `${((index + 1) / total) * 50}%`;
           }
-        } catch (err) {
-          failCount++;
+          setStatus(`Merging ${total} files…`, '');
+          const result = await eel.merge_pdfs(filesData, outputNameInput.value.trim() || 'merged')();
+          if (result && result.success) {
+            window.lastPdfPath = result.file_path;
+            progressFill.style.width = '100%';
+            setStatus(`✓ ${result.message}`, 'success');
+            actionRow.classList.remove('hidden');
+          } else {
+            setStatus(`✗ ${result?.message || 'Unable to merge the selected files.'}`, 'error');
+          }
+          return;
         }
 
-        // Update progress
-        const progress = ((i + 1) / total) * 100;
-        progressFill.style.width = progress + '%';
-        setStatus(`${i + 1} / ${total} files converted (${successCount} ok, ${failCount} failed)`, '');
-      }
+        setStatus(`0 / ${total} files converted`, '');
+        for (let index = 0; index < total; index++) {
+          const file = selectedFiles[index];
+          const outputName = total === 1 ? outputNameInput.value.trim() : file.name.replace(/\.[^/.]+$/, "");
+          try {
+            const result = await eel.convert_file(await readFileAsBase64(file), file.name, outputName, useOcr)();
+            if (result && result.success) {
+              successCount++;
+              window.lastPdfPath = result.file_path;
+            } else {
+              failCount++;
+            }
+          } catch (_) {
+            failCount++;
+          }
+          progressFill.style.width = `${((index + 1) / total) * 100}%`;
+          setStatus(`${index + 1} / ${total} files converted (${successCount} ok, ${failCount} failed)`, '');
+        }
 
-      if (successCount > 0) {
-        setStatus(`✓ ${successCount} file(s) converted successfully, ${failCount} failed`, 'success');
-        actionRow.classList.remove('hidden');
-      } else {
-        setStatus(`✗ All ${failCount} files failed`, 'error');
+        if (successCount > 0) {
+          setStatus(`✓ ${successCount} file(s) converted successfully, ${failCount} failed`, 'success');
+          actionRow.classList.remove('hidden');
+        } else {
+          setStatus(`✗ All ${failCount} files failed`, 'error');
+        }
+      } catch (error) {
+        setStatus(`✗ ${error.message || 'Conversion failed.'}`, 'error');
+      } finally {
+        convertBtn.disabled = false;
+        setTimeout(() => progressBar.classList.add('hidden'), 1200);
       }
-
-      convertBtn.disabled = false;
-      setTimeout(() => progressBar.classList.add('hidden'), 1200);
     });
 
     function readFileAsBase64(file) {

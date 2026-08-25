@@ -1,160 +1,68 @@
-# 📄 Point2PDF
+# Point2PDF
 
-Convert files to PDF through a simple, modern drag-and-drop desktop interface.
+Point2PDF is a local desktop app for converting common files to PDF through a drag-and-drop interface. It uses native Python libraries only; LibreOffice is not required.
 
-Point2PDF provides fast PDF conversion for common file formats while maintaining a clean and lightweight user experience.
+## Features
 
-## ✨ Features
+- Convert one file or a batch of files locally
+- Merge two or more supported files into one PDF
+- Convert images with optional OCR, when Tesseract is installed
+- Keep every sheet of XLSX and ODS workbooks
+- Preserve existing PDFs when converting or merging them
+- Choose an output name without overwriting prior PDFs
+- Open the managed output folder after a conversion
 
-* Drag & drop or browse for files
-* Custom PDF output naming
-* Modern desktop interface built with Eel
-* Silent conversion with no command windows
-* Fast local processing
-* Open output folder directly after conversion
-* Supports multiple file formats
+## Supported input formats
 
-### Supported Formats
+| Format | Native conversion |
+| --- | --- |
+| PDF | Copy or merge pages |
+| JPG, JPEG, PNG, BMP, GIF | Image-to-PDF; optional OCR |
+| TXT | Text-to-PDF |
+| HTML | HTML-to-PDF |
+| DOCX | Document text and supported formatting-to-PDF |
+| XLSX, CSV, ODS | Table-to-PDF; XLSX/ODS include all sheets |
 
-| Format                                       | Conversion Engine    |
-| -------------------------------------------- | -------------------- |
-| JPG, JPEG, PNG, BMP, GIF                     | Native               |
-| TXT                                          | Native               |
-| HTML                                         | Native               |
-| DOCX                                         | Native               |
-| XLSX, CSV, ODS                               | Native               |
-| PPTX, ODP, DOC, XLS and other Office formats | LibreOffice fallback |
+Legacy Office files such as `.doc`, `.xls`, `.pptx`, and `.odp` are intentionally not supported. They require a separate office-rendering engine and are not advertised by the app.
 
-## 📦 Requirements
+## Install and run
 
-### Required
-
-* Python 3.8 or newer
-* LibreOffice (recommended for maximum format compatibility)
-
-### Python Dependencies
-
-Install all dependencies:
+Requires Python 3.9 or later.
 
 ```bash
 pip install -r requirements.txt
-```
-
-Or install manually:
-
-```bash
-pip install eel Pillow fpdf2 mammoth weasyprint pandas openpyxl odfpy
-```
-
-## 🚀 Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/JotaP-Brito/Point2PDF.git
-cd Point2PDF
-```
-
-### 2. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. (Optional) Install LibreOffice
-
-LibreOffice improves compatibility with legacy and advanced Office formats.
-
-Download:
-
-https://www.libreoffice.org/download/download-libreoffice/
-
-If needed, adjust the LibreOffice path inside:
-
-```text
-point2PDF.py
-```
-
-### 4. Run Point2PDF
-
-```bash
 python point2PDF.py
 ```
 
-The application window will open automatically.
+For OCR, install [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) and make `tesseract` available on your `PATH`. On Windows, the usual installation path is `C:\Program Files\Tesseract-OCR\tesseract.exe`.
 
-## 🖼️ Customisation
+## Development and testing
 
-### Logo
-<img width="200" alt="Point2PDF" src="https://github.com/user-attachments/assets/624cd9d1-efce-4913-8b59-ee5bdc666402" />
+Install development dependencies and run the test suite:
 
-
-
-### UI Styling
-
-Modify colors, spacing, animations, and layout directly inside:
-
-```text
-index.html
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
-### Logo Size
+To build the Windows executable, install PyInstaller and run:
 
-To reduce the logo size, update the `.logo` CSS class:
-
-```css
-.logo {
-    width: 140px;
-    height: auto;
-    display: block;
-    margin: 0 auto 15px auto;
-}
+```bash
+pyinstaller Point2PDF.spec
 ```
 
-Recommended sizes:
+The spec is tracked and uses the bundled `gtk/` DLL folder, rather than a machine-specific MSYS2 path.
 
-* 120px → Compact
-* 140px → Balanced
-* 160px → Large
+## Output location
 
-## 📁 Output Location
-
-Converted PDFs are saved to:
+All PDFs are saved to:
 
 ```text
 ~/PDF_Converter_Output
 ```
 
-Windows example:
+The app adds ` (2)`, ` (3)`, and so on when an output name already exists, so previous files are kept.
 
-```text
-C:\Users\<username>\PDF_Converter_Output
-```
+## License
 
-## 📜 License
-
-MIT License
-
-Copyright (c) 2026 Joao Pedro Brito
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-Made with ❤️ by Joao Pedro Brito
+MIT License. See [LICENSE](LICENSE).

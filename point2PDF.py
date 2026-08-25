@@ -1,313 +1,333 @@
-import subprocess
-import sys
+import base64
+import binascii
 import os
 import platform
 import re
-import tempfile
 import shutil
-from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import uuid
-import base64
+from pathlib import Path
+
+# PyInstaller places the bundled GTK runtime alongside the executable payload.
+_DLL_DIRECTORY = None
+if getattr(sys, "frozen", False) and hasattr(os, "add_dll_directory"):
+    bundled_gtk = Path(sys._MEIPASS) / "gtk"
+    if bundled_gtk.is_dir():
+        _DLL_DIRECTORY = os.add_dll_directory(str(bundled_gtk))
+
 import eel
-from PIL import Image
 import mammoth
-from weasyprint import HTML
-from fpdf import FPDF
 import pandas as pd
 import pytesseract
-from io import BytesIO
+from fpdf import FPDF
+from PIL import Image
 from pypdf import PdfReader, PdfWriter
+from weasyprint import HTML
+
 
 # ----- Silence Fontconfig warnings on Windows (WeasyPrint) -----
 if platform.system() == "Windows":
-    possible_paths = [
+    for fontconfig_path in (
         r"C:\msys64\mingw64\etc\fonts",
         r"C:\Program Files\GTK3-Runtime Win64\etc\fonts",
         r"C:\Program Files (x86)\GTK3-Runtime Win32\etc\fonts",
-    ]
-    for path in possible_paths:
-        if os.path.isdir(path):
-            os.environ['FONTCONFIG_PATH'] = path
+    ):
+        if os.path.isdir(fontconfig_path):
+            os.environ["FONTCONFIG_PATH"] = fontconfig_path
             break
 
-# ------------------------------------------------------------
-# Tesseract path (adjust if needed)
-# ------------------------------------------------------------
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "", name).strip()
+OUTPUT_FOLDER = Path.home() / "PDF_Converter_Output"
+OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif"}
+SPREADSHEET_EXTENSIONS = {".xlsx", ".ods", ".csv"}
+SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | SPREADSHEET_EXTENSIONS | {".txt", ".html", ".docx", ".pdf"}
+WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+}
 
-UPLOAD_FOLDER = Path.home() / "PDF_Converter_Output"
-UPLOAD_FOLDER.mkdir(exist_ok=True)
+
+def sanitize_filename(name, fallback="output"):
+    """Return a safe, portable filename stem without an extension."""
+    candidate = Path(str(name)).name
+    candidate = re.sub(r'[\\/*?:"<>|]', "", candidate).strip(". ")
+    candidate = re.sub(r"\s+", " ", candidate)
+    if candidate.lower().endswith(".pdf"):
+        candidate = candidate[:-4].rstrip(". ")
+    if not candidate or candidate.upper() in WINDOWS_RESERVED_NAMES:
+        candidate = fallback
+    return candidate[:120]
+
+
+def create_output_path(stem, suffix=".pdf"):
+    """Choose a non-destructive output path inside the application folder."""
+    safe_stem = sanitize_filename(stem)
+    candidate = OUTPUT_FOLDER / f"{safe_stem}{suffix}"
+    number = 2
+    while candidate.exists():
+        candidate = OUTPUT_FOLDER / f"{safe_stem} ({number}){suffix}"
+        number += 1
+    return candidate
+
+
+def is_output_file(path):
+    """Reject paths outside the folder managed by this application."""
+    try:
+        Path(path).resolve().relative_to(OUTPUT_FOLDER.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def decode_upload(file_b64):
+    if not isinstance(file_b64, str):
+        raise ValueError("The uploaded file is invalid.")
+    if len(file_b64) > (MAX_FILE_SIZE_BYTES * 4 // 3) + 4:
+        raise ValueError("Files larger than 100 MB are not supported.")
+    try:
+        file_bytes = base64.b64decode(file_b64, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ValueError("The uploaded file is not valid base64 data.") from error
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise ValueError("Files larger than 100 MB are not supported.")
+    return file_bytes
 
 
 @eel.expose
 def get_gif_list():
     gif_dir = Path(__file__).parent / "gifs"
-    if gif_dir.exists():
-        files = [f"gifs/{f.name}" for f in gif_dir.iterdir() if f.suffix.lower() == ".gif"]
-        return files
-    return []
+    if not gif_dir.exists():
+        return []
+    return sorted(f"gifs/{file.name}" for file in gif_dir.iterdir() if file.suffix.lower() == ".gif")
 
 
-# ------------------------------------------------------------
-# Pure Python converters (no LibreOffice needed)
-# ------------------------------------------------------------
-def convert_locally(input_path, output_dir, desired_stem, ocr=False):
-    ext = Path(input_path).suffix.lower()
-    output_pdf = output_dir / f"{desired_stem}.pdf"
+def convert_locally(input_path, output_pdf, ocr=False):
+    """Convert one supported file to a backend-selected PDF path."""
+    input_path = Path(input_path)
+    output_pdf = Path(output_pdf)
+    extension = input_path.suffix.lower()
 
     try:
-        if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
-            if ocr:
-                img = Image.open(input_path)
-                pdf_bytes = pytesseract.image_to_pdf_or_hocr(img, extension='pdf')
-                with open(output_pdf, 'wb') as f:
-                    f.write(pdf_bytes)
-                return True, str(output_pdf)
-            else:
-                img = Image.open(input_path).convert('RGB')
-                img.save(output_pdf, 'PDF')
-                return True, str(output_pdf)
+        if extension == ".pdf":
+            shutil.copyfile(input_path, output_pdf)
 
-        elif ext == '.txt':
+        elif extension in IMAGE_EXTENSIONS:
+            with Image.open(input_path) as image:
+                if ocr:
+                    pdf_bytes = pytesseract.image_to_pdf_or_hocr(image, extension="pdf")
+                    output_pdf.write_bytes(pdf_bytes)
+                else:
+                    image.convert("RGB").save(output_pdf, "PDF")
+
+        elif extension == ".txt":
             pdf = FPDF()
-            pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.set_font("Arial", size=12)
-            with open(input_path, 'r', encoding='utf-8', errors='replace') as f:
-                for line in f:
-                    pdf.cell(200, 10, txt=line.strip(), ln=True)
+            pdf.add_page()
+            pdf.set_font("Helvetica", size=12)
+            with input_path.open("r", encoding="utf-8", errors="replace") as text_file:
+                for line in text_file:
+                    pdf.multi_cell(0, 7, text=line.rstrip("\r\n"))
             pdf.output(str(output_pdf))
-            return True, str(output_pdf)
 
-        elif ext == '.html':
-            HTML(filename=input_path).write_pdf(output_pdf)
-            return True, str(output_pdf)
+        elif extension == ".html":
+            HTML(filename=str(input_path), base_url=str(input_path.parent)).write_pdf(str(output_pdf))
 
-        elif ext == '.docx':
-            with open(input_path, "rb") as f:
-                result = mammoth.convert_to_html(f)
-            html = result.value
-            HTML(string=html).write_pdf(output_pdf)
-            return True, str(output_pdf)
+        elif extension == ".docx":
+            with input_path.open("rb") as document:
+                html = mammoth.convert_to_html(document).value
+            HTML(string=html, base_url=str(input_path.parent)).write_pdf(str(output_pdf))
 
-        elif ext in ('.xlsx', '.ods', '.csv'):
-            if ext == '.csv':
-                df = pd.read_csv(input_path)
-            elif ext == '.xlsx':
-                df = pd.read_excel(input_path, engine='openpyxl')
-            elif ext == '.ods':
-                df = pd.read_excel(input_path, engine='odf')
+        elif extension in SPREADSHEET_EXTENSIONS:
+            if extension == ".csv":
+                sheets = {input_path.stem: pd.read_csv(input_path)}
+            elif extension == ".xlsx":
+                sheets = pd.read_excel(input_path, engine="openpyxl", sheet_name=None)
+            else:
+                sheets = pd.read_excel(input_path, engine="odf", sheet_name=None)
 
-            html_template = f"""<!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <style>
-            @page {{ size: A4 landscape; margin: 1cm; }}
-            body {{ font-family: Arial, sans-serif; font-size: 10px; }}
-            table {{ width: 100%; border-collapse: collapse; word-wrap: break-word; }}
-            th {{ background-color: #2e7d32; color: white; padding: 6px; text-align: left; font-weight: bold; }}
-            td {{ padding: 4px 6px; border-bottom: 1px solid #ddd; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
-            </style>
-            </head>
-            <body>
-            {df.to_html(index=False, na_rep='')}
-            </body>
-            </html>"""
-            HTML(string=html_template).write_pdf(output_pdf)
-            return True, str(output_pdf)
+            tables = "".join(
+                f'<section><h1>{sheet_name}</h1>{dataframe.to_html(index=False, na_rep="", escape=True)}</section>'
+                for sheet_name, dataframe in sheets.items()
+            )
+            html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><style>
+@page {{ size: A4 landscape; margin: 1cm; }}
+body {{ font-family: Arial, sans-serif; font-size: 10px; }}
+section {{ break-after: page; }} section:last-child {{ break-after: auto; }}
+table {{ width: 100%; border-collapse: collapse; overflow-wrap: anywhere; }}
+th {{ background: #2e7d32; color: white; padding: 6px; text-align: left; }}
+td {{ padding: 4px 6px; border-bottom: 1px solid #ddd; }}
+tr:nth-child(even) {{ background: #f9f9f9; }}
+</style></head><body>{tables}</body></html>"""
+            HTML(string=html).write_pdf(str(output_pdf))
 
         else:
-            return False, f"File type '{ext}' not supported."
+            return False, f"File type '{extension or '(no extension)'}' is not supported."
+        return True, str(output_pdf)
+    except Exception as error:
+        return False, f"Conversion failed: {error}"
 
-    except Exception as e:
-        return False, f"Local conversion failed: {e}"
 
-
-# ------------------------------------------------------------
-# Password Protection
-# ------------------------------------------------------------
-@eel.expose
-def encrypt_pdf(file_path, password):
+def encrypt_pdf_file(file_path, password):
+    if not password:
+        return True, str(file_path)
+    if not is_output_file(file_path):
+        return False, "This PDF is outside the application output folder."
     try:
         reader = PdfReader(file_path)
         writer = PdfWriter()
         for page in reader.pages:
             writer.add_page(page)
         writer.encrypt(password)
-
-        encrypted_path = Path(file_path).with_stem(Path(file_path).stem + "_encrypted")
-        with open(encrypted_path, "wb") as f:
-            writer.write(f)
-
-        return {
-            "success": True,
-            "message": f"Encrypted PDF: {encrypted_path.name}",
-            "file_path": str(encrypted_path)
-        }
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+        encrypted_path = create_output_path(f"{Path(file_path).stem}_encrypted")
+        with encrypted_path.open("xb") as encrypted_file:
+            writer.write(encrypted_file)
+        return True, str(encrypted_path)
+    except Exception as error:
+        return False, str(error)
 
 
-# ------------------------------------------------------------
-# Single file conversion
-# ------------------------------------------------------------
+@eel.expose
+def encrypt_pdf(file_path, password):
+    success, result = encrypt_pdf_file(file_path, password)
+    if success:
+        return {"success": True, "message": f"Encrypted PDF: {Path(result).name}", "file_path": result}
+    return {"success": False, "message": result}
+
+
 @eel.expose
 def convert_file(file_b64, original_name, output_name, ocr=False, password=None):
+    temporary_input = None
     try:
-        file_bytes = base64.b64decode(file_b64)
-        ext = Path(original_name).suffix or ".tmp"
-        tmp_input = UPLOAD_FOLDER / f"{uuid.uuid4().hex}{ext}"
-        with open(tmp_input, "wb") as f:
-            f.write(file_bytes)
+        file_bytes = decode_upload(file_b64)
+        extension = Path(str(original_name)).suffix.lower()
+        if extension not in SUPPORTED_EXTENSIONS:
+            return {"success": False, "message": f"File type '{extension or '(no extension)'}' is not supported."}
 
-        safe_name = sanitize_filename(output_name) or "output"
-        success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_name, ocr=ocr)
-        os.remove(tmp_input)
-
-        if success:
-            if password:
-                encrypt_result = encrypt_pdf(result, password)
-                if encrypt_result["success"]:
-                    result = encrypt_result["file_path"]
-                    msg = f"PDF created (encrypted): {Path(result).name}"
-                else:
-                    return {"success": False, "message": encrypt_result["message"]}
-            else:
-                msg = f"PDF created: {Path(result).name}"
-
-            return {
-                "success": True,
-                "message": msg,
-                "file_path": result
-            }
-        else:
+        temporary_input = OUTPUT_FOLDER / f".upload-{uuid.uuid4().hex}{extension}"
+        temporary_input.write_bytes(file_bytes)
+        output_pdf = create_output_path(sanitize_filename(output_name, "output"))
+        success, result = convert_locally(temporary_input, output_pdf, ocr=bool(ocr))
+        if not success:
             return {"success": False, "message": result}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+
+        if password:
+            encrypted, encrypted_result = encrypt_pdf_file(result, password)
+            if not encrypted:
+                return {"success": False, "message": encrypted_result}
+            Path(result).unlink(missing_ok=True)
+            result = encrypted_result
+            message = f"PDF created (encrypted): {Path(result).name}"
+        else:
+            message = f"PDF created: {Path(result).name}"
+        return {"success": True, "message": message, "file_path": result}
+    except ValueError as error:
+        return {"success": False, "message": str(error)}
+    except Exception as error:
+        return {"success": False, "message": f"Conversion failed: {error}"}
+    finally:
+        if temporary_input:
+            temporary_input.unlink(missing_ok=True)
 
 
-# ------------------------------------------------------------
-# Batch conversion
-# ------------------------------------------------------------
 @eel.expose
 def convert_batch(files_data):
+    if not isinstance(files_data, list):
+        return [{"index": 0, "success": False, "message": "The batch data is invalid."}]
     results = []
-    for idx, fdata in enumerate(files_data):
-        b64 = fdata.get("b64", "")
-        orig_name = fdata.get("original_name", f"file_{idx}")
-        out_name = fdata.get("output_name", "")
-        ocr = fdata.get("ocr", False)
-        password = fdata.get("password", None)
-
-        res = convert_file(b64, orig_name, out_name, ocr, password)
-        res["index"] = idx
-        results.append(res)
+    for index, file_data in enumerate(files_data):
+        if not isinstance(file_data, dict):
+            results.append({"index": index, "success": False, "message": "The file data is invalid."})
+            continue
+        result = convert_file(
+            file_data.get("b64", ""),
+            file_data.get("original_name", f"file_{index}"),
+            file_data.get("output_name", ""),
+            file_data.get("ocr", False),
+            file_data.get("password"),
+        )
+        result["index"] = index
+        results.append(result)
     return results
 
 
-# ------------------------------------------------------------
-# PDF Merging (pypdf ≥6)
-# ------------------------------------------------------------
 @eel.expose
 def merge_pdfs(file_data_list, output_name):
-    temp_pdfs = []
+    if not isinstance(file_data_list, list) or len(file_data_list) < 2:
+        return {"success": False, "message": "Select at least two supported files to merge."}
+
     try:
-        for idx, fdata in enumerate(file_data_list):
-            b64 = fdata.get("b64", "")
-            orig_name = fdata.get("original_name", f"file_{idx}")
-            file_bytes = base64.b64decode(b64)
-            ext = Path(orig_name).suffix or ".tmp"
-            tmp_input = UPLOAD_FOLDER / f"merge_{idx}_{uuid.uuid4().hex}{ext}"
-            with open(tmp_input, "wb") as f:
-                f.write(file_bytes)
+        with tempfile.TemporaryDirectory(prefix=".merge-", dir=OUTPUT_FOLDER) as temporary_dir_name:
+            temporary_dir = Path(temporary_dir_name)
+            pdf_paths = []
+            for index, file_data in enumerate(file_data_list):
+                if not isinstance(file_data, dict):
+                    return {"success": False, "message": f"File {index + 1} is invalid."}
+                original_name = file_data.get("original_name", f"file_{index + 1}")
+                extension = Path(str(original_name)).suffix.lower()
+                if extension not in SUPPORTED_EXTENSIONS:
+                    return {"success": False, "message": f"{original_name}: unsupported file type."}
+                input_path = temporary_dir / f"input-{index}{extension}"
+                input_path.write_bytes(decode_upload(file_data.get("b64", "")))
+                pdf_path = temporary_dir / f"converted-{index}.pdf"
+                success, result = convert_locally(input_path, pdf_path, ocr=bool(file_data.get("ocr", False)))
+                if not success:
+                    return {"success": False, "message": f"Failed to convert {original_name}: {result}"}
+                pdf_paths.append(Path(result))
 
-            safe_stem = sanitize_filename(f"temp_{idx}_{uuid.uuid4().hex}")
-            success, result = convert_locally(tmp_input, UPLOAD_FOLDER, safe_stem)
-            os.remove(tmp_input)
+            merged_path = create_output_path(sanitize_filename(output_name, "merged"))
+            writer = PdfWriter()
+            for pdf_path in pdf_paths:
+                reader = PdfReader(pdf_path)
+                for page in reader.pages:
+                    writer.add_page(page)
+            with merged_path.open("xb") as merged_file:
+                writer.write(merged_file)
 
-            if success:
-                temp_pdfs.append(result)
-            else:
-                for p in temp_pdfs:
-                    try: os.remove(p)
-                    except: pass
-                return {"success": False, "message": f"Failed to convert {orig_name}: {result}"}
-
-        safe_output = sanitize_filename(output_name) or "merged"
-        merged_path = UPLOAD_FOLDER / f"{safe_output}.pdf"
-
-        writer = PdfWriter()
-        for pdf_path in temp_pdfs:
-            reader = PdfReader(pdf_path)
-            for page in reader.pages:
-                writer.add_page(page)
-        with open(merged_path, "wb") as f:
-            writer.write(f)
-
-        for p in temp_pdfs:
-            try: os.remove(p)
-            except: pass
-
-        return {
-            "success": True,
-            "message": f"Merged PDF created: {merged_path.name}",
-            "file_path": str(merged_path)
-        }
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": True, "message": f"Merged PDF created: {merged_path.name}", "file_path": str(merged_path)}
+    except ValueError as error:
+        return {"success": False, "message": str(error)}
+    except Exception as error:
+        return {"success": False, "message": f"Merge failed: {error}"}
 
 
-# ------------------------------------------------------------
-# Metadata Editing
-# ------------------------------------------------------------
 @eel.expose
 def set_metadata(file_path, title="", author="", subject="", keywords=""):
+    if not is_output_file(file_path):
+        return {"success": False, "message": "This PDF is outside the application output folder."}
     try:
         reader = PdfReader(file_path)
         writer = PdfWriter()
         for page in reader.pages:
             writer.add_page(page)
         writer.add_metadata({
-            "/Title": title,
-            "/Author": author,
-            "/Subject": subject,
-            "/Keywords": keywords
+            "/Title": str(title), "/Author": str(author),
+            "/Subject": str(subject), "/Keywords": str(keywords),
         })
-        meta_path = Path(file_path).with_stem(Path(file_path).stem + "_meta")
-        with open(meta_path, "wb") as f:
-            writer.write(f)
-        return {"success": True, "file_path": str(meta_path)}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+        metadata_path = create_output_path(f"{Path(file_path).stem}_metadata")
+        with metadata_path.open("xb") as metadata_file:
+            writer.write(metadata_file)
+        return {"success": True, "file_path": str(metadata_path)}
+    except Exception as error:
+        return {"success": False, "message": str(error)}
 
 
-# ------------------------------------------------------------
-# Open folder
-# ------------------------------------------------------------
 @eel.expose
-def open_file_explorer(path):
-    folder = Path(path).parent
-    if folder.exists():
-        if sys.platform == "win32":
-            os.startfile(folder)
-        elif sys.platform == "darwin":
-            subprocess.run(["open", str(folder)])
-        else:
-            subprocess.run(["xdg-open", str(folder)])
+def open_file_explorer(_path=None):
+    """Open only the managed output directory; never a caller-provided directory."""
+    if sys.platform == "win32":
+        os.startfile(OUTPUT_FOLDER)
+    elif sys.platform == "darwin":
+        subprocess.run(["open", str(OUTPUT_FOLDER)], check=False)
+    else:
+        subprocess.run(["xdg-open", str(OUTPUT_FOLDER)], check=False)
 
 
-# ------------------------------------------------------------
-# Start the Eel app
-# ------------------------------------------------------------
 if __name__ == "__main__":
     eel.init(Path(__file__).parent)
-    eel.start("index.html", size=(1920, 1080), port=5004,
-              cmdline_args=['--start-fullscreen'])
+    eel.start("index.html", size=(1920, 1080), port=5004, cmdline_args=["--start-fullscreen"])

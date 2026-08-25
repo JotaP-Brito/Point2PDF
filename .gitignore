@@ -24,6 +24,7 @@ wheels/
 # PyInstaller
 *.manifest
 *.spec
+!Point2PDF.spec
 
 # Environments
 .env

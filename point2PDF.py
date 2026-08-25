@@ -10,12 +10,15 @@ import tempfile
 import uuid
 from pathlib import Path
 
-# PyInstaller places the bundled GTK runtime alongside the executable payload.
+# Prefer the project's GTK runtime on Windows. This avoids accidentally loading
+# incompatible GTK DLLs installed by unrelated applications such as Tesseract.
 _DLL_DIRECTORY = None
-if getattr(sys, "frozen", False) and hasattr(os, "add_dll_directory"):
-    bundled_gtk = Path(sys._MEIPASS) / "gtk"
+if hasattr(os, "add_dll_directory"):
+    runtime_root = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    bundled_gtk = runtime_root / "gtk"
     if bundled_gtk.is_dir():
         _DLL_DIRECTORY = os.add_dll_directory(str(bundled_gtk))
+        os.environ.setdefault("WEASYPRINT_DLL_DIRECTORIES", str(bundled_gtk))
 
 import eel
 import mammoth
@@ -24,7 +27,6 @@ import pytesseract
 from fpdf import FPDF
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
-from weasyprint import HTML
 
 
 # ----- Silence Fontconfig warnings on Windows (WeasyPrint) -----
@@ -39,8 +41,7 @@ if platform.system() == "Windows":
             break
 
 
-OUTPUT_FOLDER = Path.home() / "PDF_Converter_Output"
-OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+OUTPUT_FOLDER = Path.home() / "Cadmus_Output"
 MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif"}
 SPREADSHEET_EXTENSIONS = {".xlsx", ".ods", ".csv"}
@@ -64,8 +65,14 @@ def sanitize_filename(name, fallback="output"):
     return candidate[:120]
 
 
+def ensure_output_folder():
+    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+    return OUTPUT_FOLDER
+
+
 def create_output_path(stem, suffix=".pdf"):
     """Choose a non-destructive output path inside the application folder."""
+    ensure_output_folder()
     safe_stem = sanitize_filename(stem)
     candidate = OUTPUT_FOLDER / f"{safe_stem}{suffix}"
     number = 2
@@ -96,6 +103,16 @@ def decode_upload(file_b64):
     if len(file_bytes) > MAX_FILE_SIZE_BYTES:
         raise ValueError("Files larger than 100 MB are not supported.")
     return file_bytes
+
+
+def write_html_pdf(*, output_pdf, filename=None, html=None, base_url=None):
+    """Load WeasyPrint only for formats that require the GTK rendering stack."""
+    from weasyprint import HTML
+
+    if filename:
+        HTML(filename=str(filename), base_url=str(base_url)).write_pdf(str(output_pdf))
+    else:
+        HTML(string=html, base_url=str(base_url) if base_url else None).write_pdf(str(output_pdf))
 
 
 @eel.expose
@@ -135,12 +152,12 @@ def convert_locally(input_path, output_pdf, ocr=False):
             pdf.output(str(output_pdf))
 
         elif extension == ".html":
-            HTML(filename=str(input_path), base_url=str(input_path.parent)).write_pdf(str(output_pdf))
+            write_html_pdf(output_pdf=output_pdf, filename=input_path, base_url=input_path.parent)
 
         elif extension == ".docx":
             with input_path.open("rb") as document:
                 html = mammoth.convert_to_html(document).value
-            HTML(string=html, base_url=str(input_path.parent)).write_pdf(str(output_pdf))
+            write_html_pdf(output_pdf=output_pdf, html=html, base_url=input_path.parent)
 
         elif extension in SPREADSHEET_EXTENSIONS:
             if extension == ".csv":
@@ -164,7 +181,7 @@ th {{ background: #2e7d32; color: white; padding: 6px; text-align: left; }}
 td {{ padding: 4px 6px; border-bottom: 1px solid #ddd; }}
 tr:nth-child(even) {{ background: #f9f9f9; }}
 </style></head><body>{tables}</body></html>"""
-            HTML(string=html).write_pdf(str(output_pdf))
+            write_html_pdf(output_pdf=output_pdf, html=html)
 
         else:
             return False, f"File type '{extension or '(no extension)'}' is not supported."
@@ -209,6 +226,7 @@ def convert_file(file_b64, original_name, output_name, ocr=False, password=None)
         if extension not in SUPPORTED_EXTENSIONS:
             return {"success": False, "message": f"File type '{extension or '(no extension)'}' is not supported."}
 
+        ensure_output_folder()
         temporary_input = OUTPUT_FOLDER / f".upload-{uuid.uuid4().hex}{extension}"
         temporary_input.write_bytes(file_bytes)
         output_pdf = create_output_path(sanitize_filename(output_name, "output"))
@@ -262,6 +280,7 @@ def merge_pdfs(file_data_list, output_name):
         return {"success": False, "message": "Select at least two supported files to merge."}
 
     try:
+        ensure_output_folder()
         with tempfile.TemporaryDirectory(prefix=".merge-", dir=OUTPUT_FOLDER) as temporary_dir_name:
             temporary_dir = Path(temporary_dir_name)
             pdf_paths = []
@@ -320,6 +339,7 @@ def set_metadata(file_path, title="", author="", subject="", keywords=""):
 @eel.expose
 def open_file_explorer(_path=None):
     """Open only the managed output directory; never a caller-provided directory."""
+    ensure_output_folder()
     if sys.platform == "win32":
         os.startfile(OUTPUT_FOLDER)
     elif sys.platform == "darwin":
@@ -328,6 +348,10 @@ def open_file_explorer(_path=None):
         subprocess.run(["xdg-open", str(OUTPUT_FOLDER)], check=False)
 
 
-if __name__ == "__main__":
+def start_app():
     eel.init(Path(__file__).parent)
     eel.start("index.html", size=(1920, 1080), port=5004, cmdline_args=["--start-fullscreen"])
+
+
+if __name__ == "__main__":
+    start_app()

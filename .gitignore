@@ -24,7 +24,7 @@ wheels/
 # PyInstaller
 *.manifest
 *.spec
-!Point2PDF.spec
+!Cadmus.spec
 
 # Environments
 .env
@@ -46,5 +46,5 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# PDF output folder (optional – remove if you want to include sample outputs)
-PDF_Converter_Output/
+# Application output folder (optional – remove if you want to include sample outputs)
+Cadmus_Output/

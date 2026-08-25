@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['point2PDF.py'],
+    ['cadmus.py'],
     pathex=[],
     binaries=[('gtk\\*.dll', 'gtk')],
-    datas=[('index.html', '.'), ('NewLogo.png', '.'), ('favicon.ico', '.'), ('gifs', 'gifs')],
+    datas=[('index.html', '.'), ('CadmusLogo.png', '.'), ('Cadmus.ico', '.'), ('gifs', 'gifs')],
     hiddenimports=['pypdf', 'pytesseract', 'weasyprint', 'mammoth', 'pandas', 'PIL', 'fpdf'],
     hookspath=[],
     hooksconfig={},
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='Point2PDF',
+    name='Cadmus',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -36,5 +36,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     version='version.txt',
-    icon=['favicon.ico'],
+    icon=['Cadmus.ico'],
 )
